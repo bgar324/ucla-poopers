@@ -1,4 +1,4 @@
-import { Toilet } from "lucide-react";  
+// import { Toilet } from "lucide-react";  
 
 interface SignUpFormProps {
   onToggle: () => void;
@@ -10,7 +10,7 @@ export default function SignUpForm({ onToggle }: SignUpFormProps) {
       <div className="flex flex-col space-y-6">
         <div className="text-center">
           <h1 className="text-2xl font-gasoek text-amber-900">
-            SIGN UP TO START POOPING NOW! <Toilet />
+            SIGN UP TO START POOPING NOW! 
           </h1>
         </div>
 
