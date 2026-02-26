@@ -8,12 +8,12 @@ interface LoginFormProps {
 
 export default function LoginForm({ onToggle }: LoginFormProps) {
   return (
-     <main className="flex flex-col items-center justify-center min-h-screen">
-       <header className="mt-8 font-gasoek text-center text-3xl px-4 py-2 w-sm bg-rose-100 rounded-xl  text-amber-900 shadow-lg">
+     <main className="flex flex-col items-center justify-center min-h-screen px-4">
+       <header className="mt-8 font-gasoek text-center text-3xl px-4 py-2 w-full max-w-md bg-rose-100 rounded-xl  text-amber-900 shadow-lg">
         PARTY POOPERS
       </header>
 
-      <div className="flex flex-col items-center mt-8 mb-8 px-8 py-8 w-sm bg-rose-100 rounded-xl shadow-lg">
+      <div className="flex flex-col items-center mt-8 mb-8 px-8 py-8 w-full max-w-md bg-rose-100 rounded-xl shadow-lg">
         <h1 className="font-gasoek text-2xl text-amber-900 text-center">
           LOGIN TO START POOPING NOW!
         </h1>
@@ -37,7 +37,7 @@ export default function LoginForm({ onToggle }: LoginFormProps) {
       </div>
 
       <div className = "items-center text-center justify-center h-min mt-4">
-        <button className="cursor-pointer font-rubik mt-4 px-4 py-2 bg-amber-900 rounded-xl text-white shadow-lg hover:bg-amber-800 hover:-translate-y-0.5 transition duration-200 ">
+        <button className="w-full cursor-pointer font-rubik mt-4 px-4 py-2 bg-amber-900 rounded-xl text-white shadow-lg hover:bg-amber-800 hover:-translate-y-0.5 transition duration-200 ">
           LOGIN
         </button>
 
@@ -51,7 +51,7 @@ export default function LoginForm({ onToggle }: LoginFormProps) {
 
         <button 
           onClick={onToggle}
-          className="cursor-pointer font-rubik mt-4 px-4 py-2 bg-amber-900 rounded-xl text-white shadow-lg hover:bg-amber-800 hover:-translate-y-0.5 transition">
+          className="w-full cursor-pointer font-rubik mt-4 px-4 py-2 bg-amber-900 rounded-xl text-white shadow-lg hover:bg-amber-800 hover:-translate-y-0.5 transition">
           SIGN UP
         </button>
       </div>
