@@ -4,6 +4,7 @@ import supabase from "@/supabaseClient";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import ToiletBG from "../components/ToiletBG";
+import Navbar from "../components/Navbar";
 
 interface ProfileRecord {
   id: string;
@@ -49,7 +50,9 @@ export default function ProfilePage() {
       return;
     }
 
-    const verifiedFactor = data.totp.find((factor) => factor.status === "verified");
+    const verifiedFactor = data.totp.find(
+      (factor) => factor.status === "verified",
+    );
     setVerifiedFactorId(verifiedFactor?.id ?? null);
     setIsMfaEnabled(Boolean(verifiedFactor));
   };
@@ -80,9 +83,9 @@ export default function ProfilePage() {
       });
 
       if (!response.ok) {
-        const data = (await response.json().catch(() => null)) as
-          | { error?: string }
-          | null;
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         setErrorMessage(data?.error ?? "Failed to load profile.");
         setIsLoading(false);
         return;
@@ -271,190 +274,201 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-amber-50 px-4 py-10">
-      <ToiletBG />
-      <div className="mx-auto w-full max-w-3xl space-y-6">
-        <section className="rounded-xl bg-rose-100 p-8 shadow-lg">
-          <div className="flex items-center justify-between gap-3">
-            <h1 className="font-gasoek text-3xl text-amber-900">PROFILE</h1>
-            <button
-              type="button"
-              onClick={() => router.push("/dashboard")}
-              className="font-rubik cursor-pointer rounded-xl border border-amber-900 px-4 py-2 text-amber-900 hover:bg-amber-100 transition"
-            >
-              Dashboard
-            </button>
-          </div>
-
-          <form onSubmit={handleSaveProfile} className="mt-6 space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  First Name
-                </label>
-                <input
-                  type="text"
-                  value={firstName}
-                  onChange={(event) => setFirstName(event.target.value)}
-                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-amber-900"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  Last Name
-                </label>
-                <input
-                  type="text"
-                  value={lastName}
-                  onChange={(event) => setLastName(event.target.value)}
-                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-amber-900"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={profile?.email ?? ""}
-                  disabled
-                  className="w-full rounded-xl border border-gray-200 bg-gray-100 px-4 py-2 text-gray-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-amber-900"
-                  minLength={3}
-                  maxLength={24}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="font-rubik cursor-pointer rounded-xl bg-amber-900 px-5 py-2 text-white shadow-md hover:bg-amber-800 transition disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isSaving ? "Saving..." : "Save Profile"}
-              </button>
+    <>
+      <Navbar />
+      <main className="min-h-screen bg-amber-50 px-4 py-10">
+        <ToiletBG />
+        <div className="mx-auto w-full max-w-3xl space-y-6">
+          <section className="rounded-xl bg-rose-100 p-8 shadow-lg">
+            <div className="flex items-center justify-between gap-3">
+              <h1 className="font-gasoek text-3xl text-amber-900">PROFILE</h1>
               <button
                 type="button"
-                onClick={handleSignOut}
-                className="font-rubik cursor-pointer rounded-xl border border-amber-900 px-5 py-2 text-amber-900 hover:bg-amber-100 transition"
+                onClick={() => router.push("/dashboard")}
+                className="font-rubik cursor-pointer rounded-xl border border-amber-900 px-4 py-2 text-amber-900 hover:bg-amber-100 transition"
               >
-                Sign Out
+                Dashboard
               </button>
             </div>
-          </form>
 
-          {statusMessage ? (
-            <p className="mt-4 font-rubik text-sm text-amber-800">
-              {statusMessage}
-            </p>
-          ) : null}
-          {errorMessage ? (
-            <p className="mt-4 font-rubik text-sm text-red-700">{errorMessage}</p>
-          ) : null}
-        </section>
-
-        <section className="rounded-xl bg-rose-100 p-8 shadow-lg">
-          <h2 className="font-gasoek text-2xl text-amber-900">
-            TWO-FACTOR AUTHENTICATION
-          </h2>
-          <p className="mt-2 font-rubik text-sm text-gray-700">
-            Status: {isMfaEnabled ? "Enabled" : "Disabled"}
-          </p>
-
-          {!isMfaEnabled && !enrollment ? (
-            <button
-              type="button"
-              onClick={handleEnableMfa}
-              disabled={isMfaLoading}
-              className="mt-4 font-rubik cursor-pointer rounded-xl bg-amber-900 px-5 py-2 text-white shadow-md hover:bg-amber-800 transition disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {isMfaLoading ? "Generating..." : "Enable 2FA"}
-            </button>
-          ) : null}
-
-          {enrollment ? (
-            <div className="mt-6 space-y-4">
-              <div className="rounded-xl border border-amber-200 bg-white p-4">
-                <p className="font-rubik text-sm text-gray-700 mb-3">
-                  Scan this QR code in Google Authenticator/Authy.
-                </p>
-                <div
-                  className="inline-block rounded-lg border border-gray-200 bg-white p-3"
-                  dangerouslySetInnerHTML={{ __html: enrollment.qrCode }}
-                />
-                <p className="mt-3 font-rubik text-xs text-gray-500 break-all">
-                  Secret: {enrollment.secret}
-                </p>
-                <p className="mt-1 font-rubik text-xs text-gray-500 break-all">
-                  URI: {enrollment.uri}
-                </p>
-              </div>
-
-              <form onSubmit={handleVerifyMfa} className="space-y-3">
+            <form onSubmit={handleSaveProfile} className="mt-6 space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">
-                    Enter 6-digit code
+                    First Name
                   </label>
                   <input
                     type="text"
-                    value={mfaCode}
-                    onChange={(event) =>
-                      setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))
-                    }
-                    placeholder="123456"
+                    value={firstName}
+                    onChange={(event) => setFirstName(event.target.value)}
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-amber-900"
-                    inputMode="numeric"
-                    pattern="\d{6}"
                     required
                   />
                 </div>
+
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">
+                    Last Name
+                  </label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(event) => setLastName(event.target.value)}
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-amber-900"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={profile?.email ?? ""}
+                    disabled
+                    className="w-full rounded-xl border border-gray-200 bg-gray-100 px-4 py-2 text-gray-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-amber-900"
+                    minLength={3}
+                    maxLength={24}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
                 <button
                   type="submit"
-                  disabled={isMfaLoading}
+                  disabled={isSaving}
                   className="font-rubik cursor-pointer rounded-xl bg-amber-900 px-5 py-2 text-white shadow-md hover:bg-amber-800 transition disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {isMfaLoading ? "Verifying..." : "Verify & Activate 2FA"}
+                  {isSaving ? "Saving..." : "Save Profile"}
                 </button>
-              </form>
-            </div>
-          ) : null}
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="font-rubik cursor-pointer rounded-xl border border-amber-900 px-5 py-2 text-amber-900 hover:bg-amber-100 transition"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </form>
 
-          {isMfaEnabled ? (
-            <button
-              type="button"
-              onClick={handleDisableMfa}
-              disabled={isMfaLoading}
-              className="mt-4 font-rubik cursor-pointer rounded-xl border border-red-400 px-5 py-2 text-red-600 hover:bg-red-50 transition disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {isMfaLoading ? "Updating..." : "Disable 2FA"}
-            </button>
-          ) : null}
+            {statusMessage ? (
+              <p className="mt-4 font-rubik text-sm text-amber-800">
+                {statusMessage}
+              </p>
+            ) : null}
+            {errorMessage ? (
+              <p className="mt-4 font-rubik text-sm text-red-700">
+                {errorMessage}
+              </p>
+            ) : null}
+          </section>
 
-          {mfaMessage ? (
-            <p className="mt-4 font-rubik text-sm text-amber-800">{mfaMessage}</p>
-          ) : null}
-          {mfaError ? (
-            <p className="mt-4 font-rubik text-sm text-red-700">{mfaError}</p>
-          ) : null}
-        </section>
-      </div>
-    </main>
+          <section className="rounded-xl bg-rose-100 p-8 shadow-lg">
+            <h2 className="font-gasoek text-2xl text-amber-900">
+              TWO-FACTOR AUTHENTICATION
+            </h2>
+            <p className="mt-2 font-rubik text-sm text-gray-700">
+              Status: {isMfaEnabled ? "Enabled" : "Disabled"}
+            </p>
+
+            {!isMfaEnabled && !enrollment ? (
+              <button
+                type="button"
+                onClick={handleEnableMfa}
+                disabled={isMfaLoading}
+                className="mt-4 font-rubik cursor-pointer rounded-xl bg-amber-900 px-5 py-2 text-white shadow-md hover:bg-amber-800 transition disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isMfaLoading ? "Generating..." : "Enable 2FA"}
+              </button>
+            ) : null}
+
+            {enrollment ? (
+              <div className="mt-6 space-y-4">
+                <div className="rounded-xl border border-amber-200 bg-white p-4">
+                  <p className="font-rubik text-sm text-gray-700 mb-3">
+                    Scan this QR code in Google Authenticator/Authy.
+                  </p>
+                  <div
+                    className="inline-block rounded-lg border border-gray-200 bg-white p-3"
+                    dangerouslySetInnerHTML={{ __html: enrollment.qrCode }}
+                  />
+                  <p className="mt-3 font-rubik text-xs text-gray-500 break-all">
+                    Secret: {enrollment.secret}
+                  </p>
+                  <p className="mt-1 font-rubik text-xs text-gray-500 break-all">
+                    URI: {enrollment.uri}
+                  </p>
+                </div>
+
+                <form onSubmit={handleVerifyMfa} className="space-y-3">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Enter 6-digit code
+                    </label>
+                    <input
+                      type="text"
+                      value={mfaCode}
+                      onChange={(event) =>
+                        setMfaCode(
+                          event.target.value.replace(/\D/g, "").slice(0, 6),
+                        )
+                      }
+                      placeholder="123456"
+                      className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-amber-900"
+                      inputMode="numeric"
+                      pattern="\d{6}"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isMfaLoading}
+                    className="font-rubik cursor-pointer rounded-xl bg-amber-900 px-5 py-2 text-white shadow-md hover:bg-amber-800 transition disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isMfaLoading ? "Verifying..." : "Verify & Activate 2FA"}
+                  </button>
+                </form>
+              </div>
+            ) : null}
+
+            {isMfaEnabled ? (
+              <button
+                type="button"
+                onClick={handleDisableMfa}
+                disabled={isMfaLoading}
+                className="mt-4 font-rubik cursor-pointer rounded-xl border border-red-400 px-5 py-2 text-red-600 hover:bg-red-50 transition disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isMfaLoading ? "Updating..." : "Disable 2FA"}
+              </button>
+            ) : null}
+
+            {mfaMessage ? (
+              <p className="mt-4 font-rubik text-sm text-amber-800">
+                {mfaMessage}
+              </p>
+            ) : null}
+            {mfaError ? (
+              <p className="mt-4 font-rubik text-sm text-red-700">{mfaError}</p>
+            ) : null}
+          </section>
+        </div>
+      </main>
+    </>
   );
 }
