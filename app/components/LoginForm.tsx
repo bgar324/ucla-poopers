@@ -177,7 +177,7 @@ export default function LoginForm({ onToggle }: LoginFormProps) {
               d="M24 48c6.3 0 11.6-2.1 15.4-5.7l-7.3-5.6c-2 1.4-4.7 2.3-8.1 2.3-5.9 0-10.9-4-12.7-9.5l-8.1 6.3C6.7 42.6 14.7 48 24 48z"
             />
           </svg>
-          SIGN IN WITH GOOGLE
+          LOGIN WITH GOOGLE
         </button>
 
         {status ? (
