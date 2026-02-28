@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { Rubik, Gasoek_One} from "next/font/google";
+import { Rubik, Gasoek_One } from "next/font/google";
 import "./globals.css";
+import ToiletBG from "./components/ToiletBG";
 
 const rubik = Rubik({
   subsets: ["latin"],
@@ -25,9 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${rubik.variable} ${gasoek.variable} antialiased`}
-      >
+      <body className={`${rubik.variable} ${gasoek.variable} antialiased`}>
         {children}
       </body>
     </html>

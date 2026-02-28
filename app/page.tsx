@@ -1,12 +1,52 @@
 "use client";
 
-import { useState } from "react";
+import supabase from "@/supabaseClient";
+import { useEffect, useState } from "react";
 import LoginForm from "./components/LoginForm";
 import SignUpForm from "./components/SignUpForm";
 import ToiletBG from "./components/ToiletBG";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const router = useRouter();
   const [showSignUp, setShowSignUp] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!active) {
+        return;
+      }
+
+      if (session) {
+        router.replace("/dashboard");
+        return;
+      }
+
+      setIsCheckingSession(false);
+    };
+
+    void checkSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session) {
+          router.replace("/dashboard");
+        }
+      },
+    );
+
+    return () => {
+      active = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, [router]);
 
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4">
@@ -18,7 +58,11 @@ export default function Home() {
       </header>
 
       <div className="relative z-10 mt-8 mb-8 w-full max-w-md">
-        {showSignUp ? (
+        {isCheckingSession ? (
+          <div className="w-full bg-rose-100 rounded-xl shadow-lg p-8 text-center font-rubik text-amber-900">
+            Checking session...
+          </div>
+        ) : showSignUp ? (
           <SignUpForm onToggle={() => setShowSignUp(false)} />
         ) : (
           <LoginForm onToggle={() => setShowSignUp(true)} />

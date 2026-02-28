@@ -7,9 +7,10 @@ export default function Navbar() {
   const pathname = usePathname()
 
   const navItems = [
+    { name: "Dashboard", href: "/dashboard" },
     { name: "Map", href: "/map" },
     { name: "Poopers", href: "/poopers" },
-    { name: "My Profile", href: "/myprofile" },
+    { name: "My Profile", href: "/profile" },
   ]
 
   return (
@@ -51,4 +52,3 @@ export default function Navbar() {
     </nav>
   )
 }
-
