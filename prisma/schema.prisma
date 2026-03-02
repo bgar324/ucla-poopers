@@ -7,14 +7,44 @@ datasource db {
 }
 
 model User {
-  id             String   @id @default(cuid())
-  supabaseAuthId String   @unique @db.Uuid
-  email          String   @unique
-  username       String   @unique
-  firstName      String
-  lastName       String
-  avatarUrl      String?
-  twoFactorEnabled Boolean @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               String   @id @default(cuid())
+  supabaseAuthId   String   @unique @db.Uuid
+  email            String   @unique
+  username         String   @unique
+  firstName        String
+  lastName         String
+  avatarUrl        String?
+  twoFactorEnabled Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  bathrooms        Bathroom[] @relation("UserBathrooms")
+  reviews          Review[]
+}
+
+model Bathroom {
+  id           String   @id @default(cuid())
+  name        String
+  building    String
+  floor       Int
+  latitude    Float
+  longitude   Float
+  type        String
+  is_closed   Boolean  @default(false)
+  created_by  String
+
+  creator     User     @relation("UserBathrooms", fields: [created_by], references: [id])
+  reviews     Review[]
+}
+
+model Review {
+  id           String   @id @default(uuid())
+  bathroom_id  String
+  user_id      String
+  rating       Int
+  description  String
+  created_at   DateTime @default(now())
+
+  bathroom     Bathroom @relation(fields: [bathroom_id], references: [id])
+  user         User     @relation(fields: [user_id], references: [id])
 }
