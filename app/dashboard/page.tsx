@@ -7,32 +7,42 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import ToiletBG from "../components/ToiletBG";
+import SpotCard from "../components/SpotCard";
+import FilterDropdown from "../components/FilterDropdown";
 
 interface SpotItem {
   id: string;
+  rating: number;
   name: string;
   detail: string;
 }
 
 const SPOTS: SpotItem[] = [
-  { id: "1", name: "Boelter Hall 1F", detail: "Near the main lecture rooms" },
+  { id: "1", 
+    rating: 4,
+    name: "Boelter Hall 1F", 
+    detail: "Near the main lecture rooms" },
   {
     id: "2",
+    rating: 5,
     name: "Powell Library 2F",
     detail: "Quiet corner by study stacks",
   },
   {
     id: "3",
+    rating: 3,
     name: "Kerckhoff Hall B1",
     detail: "Fastest option between classes",
   },
   {
     id: "4",
+    rating: 4,
     name: "Ackerman Union 3F",
     detail: "Good traffic flow, usually open",
   },
   {
     id: "5",
+    rating: 2,
     name: "Young Research Library",
     detail: "Wide stalls and clean counters",
   },
@@ -109,8 +119,7 @@ export default function Dashboard() {
   return (
     <main className="min-h-screen bg-amber-50">
       <Navbar />
-      <ToiletBG />
-
+      
       <div className="relative z-10 grid min-h-[calc(100vh-5rem)] grid-cols-1 lg:grid-cols-3">
         <aside className="border-b border-amber-900/20 bg-white/90 p-6 backdrop-blur-sm lg:border-r lg:border-b-0 lg:p-8">
           <div className="relative">
@@ -129,7 +138,7 @@ export default function Dashboard() {
 
           <div className="mt-7">
             <h2 className="font-rubik text-2xl font-semibold text-amber-900">
-              Poop Spots
+              Poop Spots <FilterDropdown />
             </h2>
             <p className="font-rubik text-sm text-gray-500">
               {filteredSpots.length} result
@@ -137,21 +146,34 @@ export default function Dashboard() {
             </p>
           </div>
 
+          {/* <div> 
+
+            <button className = "px-4 py-2 bg-amber-900 text-white rounded-full hover:bg-amber-800 transition"> 
+              Near Me
+            </button> 
+
+            <button className = "px-4 py-2 bg-amber-900 text-white rounded-full hover:bg-amber-800 transition"> 
+              Accessible
+            </button>
+
+             <button className = "px-4 py-2 bg-amber-900 text-white rounded-full hover:bg-amber-800 transition"> 
+              Gender Neutral
+            </button>
+
+            <button className = "px-4 py-2 bg-amber-900 text-white rounded-full hover:bg-amber-800 transition"> 
+              Top Rated
+            </button> 
+
+            <button className = "px-4 py-2 bg-amber-900 text-white rounded-full hover:bg-amber-800 transition"> 
+              Worst Rated
+            </button> 
+
+          </div> */}
+
           <div className="mt-5 space-y-3">
-            {filteredSpots.map((spot) => (
-              <Link
-                key={spot.id}
-                href={`/bathroom/${spot.id}`}
-                className="block rounded-xl border border-amber-900 bg-rose-50 p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-              >
-                <p className="font-rubik font-medium text-amber-900">
-                  {spot.name}
-                </p>
-                <p className="mt-1 font-rubik text-sm text-gray-600">
-                  {spot.detail}
-                </p>
-              </Link>
-            ))}
+             {filteredSpots.map((spot) => (
+          <SpotCard key={spot.id} spot={spot} />
+        ))}
 
             {filteredSpots.length === 0 ? (
               <p className="rounded-xl border border-dashed border-amber-900/50 bg-amber-50 p-4 font-rubik text-sm text-gray-600">
