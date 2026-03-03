@@ -3,73 +3,103 @@
 import Navbar from "@/app/components/Navbar";
 import supabase from "@/supabaseClient";
 import { Search } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import ToiletBG from "../components/ToiletBG";
+import { useEffect, useState } from "react";
+import FilterDropdown, {
+  type DashboardFilter,
+} from "../components/FilterDropdown";
 import SpotCard from "../components/SpotCard";
-import FilterDropdown from "../components/FilterDropdown";
+import ToiletBG from "../components/ToiletBG";
 
-interface SpotItem {
+interface BathroomSpot {
   id: string;
-  rating: number;
   name: string;
   detail: string;
+  building: string;
+  floor: number;
+  latitude: number;
+  longitude: number;
+  type: string;
+  typeLabel: string;
+  isOpen: boolean;
+  rating: number;
+  reviewCount: number;
 }
 
-const SPOTS: SpotItem[] = [
-  { id: "1", 
-    rating: 4,
-    name: "Boelter Hall 1F", 
-    detail: "Near the main lecture rooms" },
-  {
-    id: "2",
-    rating: 5,
-    name: "Powell Library 2F",
-    detail: "Quiet corner by study stacks",
-  },
-  {
-    id: "3",
-    rating: 3,
-    name: "Kerckhoff Hall B1",
-    detail: "Fastest option between classes",
-  },
-  {
-    id: "4",
-    rating: 4,
-    name: "Ackerman Union 3F",
-    detail: "Good traffic flow, usually open",
-  },
-  {
-    id: "5",
-    rating: 2,
-    name: "Young Research Library",
-    detail: "Wide stalls and clean counters",
-  },
-];
+function toRadians(value: number) {
+  return (value * Math.PI) / 180;
+}
+
+function getDistanceInMiles(
+  start: { latitude: number; longitude: number },
+  end: { latitude: number; longitude: number },
+) {
+  const earthRadiusMiles = 3958.8;
+  const latDelta = toRadians(end.latitude - start.latitude);
+  const lonDelta = toRadians(end.longitude - start.longitude);
+  const startLat = toRadians(start.latitude);
+  const endLat = toRadians(end.latitude);
+
+  const haversine =
+    Math.sin(latDelta / 2) ** 2 +
+    Math.cos(startLat) * Math.cos(endLat) * Math.sin(lonDelta / 2) ** 2;
+  const arc = 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+
+  return earthRadiusMiles * arc;
+}
+
+function matchesSearch(spot: BathroomSpot, query: string) {
+  if (!query) {
+    return true;
+  }
+
+  const haystack = [
+    spot.name,
+    spot.detail,
+    spot.building,
+    spot.typeLabel,
+    spot.isOpen ? "open" : "closed",
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(query);
+}
+
+function getFilterLabel(filter: DashboardFilter) {
+  switch (filter) {
+    case "near-me":
+      return "Near Me";
+    case "top-rated":
+      return "Top Rated";
+    case "worst-rated":
+      return "Worst Rated";
+    case "gender-neutral":
+      return "Gender Neutral";
+    case "accessible":
+      return "Accessible";
+    default:
+      return "All Spots";
+  }
+}
 
 export default function Dashboard() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
+  const [spots, setSpots] = useState<BathroomSpot[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-
-  const filteredSpots = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) {
-      return SPOTS;
-    }
-
-    return SPOTS.filter(
-      (spot) =>
-        spot.name.toLowerCase().includes(query) ||
-        spot.detail.toLowerCase().includes(query),
-    );
-  }, [searchQuery]);
+  const [activeFilter, setActiveFilter] = useState<DashboardFilter>("all");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [locationError, setLocationError] = useState("");
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
 
-    const loadSession = async () => {
+    const loadDashboard = async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -83,10 +113,37 @@ export default function Dashboard() {
         return;
       }
 
-      setIsLoading(false);
+      try {
+        const response = await fetch("/api/bathrooms");
+        const data = (await response.json().catch(() => null)) as
+          | { bathrooms?: BathroomSpot[]; error?: string }
+          | null;
+
+        if (!active) {
+          return;
+        }
+
+        if (!response.ok || !data?.bathrooms) {
+          throw new Error(data?.error ?? "Failed to load bathrooms.");
+        }
+
+        setSpots(data.bathrooms);
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+
+        setErrorMessage(
+          error instanceof Error ? error.message : "Failed to load bathrooms.",
+        );
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
     };
 
-    void loadSession();
+    void loadDashboard();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
@@ -102,13 +159,92 @@ export default function Dashboard() {
     };
   }, [router]);
 
+  useEffect(() => {
+    if (
+      activeFilter !== "near-me" ||
+      userLocation ||
+      typeof navigator === "undefined" ||
+      !navigator.geolocation
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    setLocationError("");
+
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        if (!cancelled) {
+          setUserLocation({
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+          });
+        }
+      },
+      () => {
+        if (!cancelled) {
+          setLocationError("Location unavailable. Showing the default order.");
+        }
+      },
+      {
+        enableHighAccuracy: false,
+        maximumAge: 300000,
+        timeout: 5000,
+      },
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeFilter, userLocation]);
+
+  const query = searchQuery.trim().toLowerCase();
+  let filteredSpots = spots.filter((spot) => matchesSearch(spot, query));
+
+  switch (activeFilter) {
+    case "top-rated":
+      filteredSpots = [...filteredSpots].sort((a, b) => b.rating - a.rating);
+      break;
+    case "worst-rated":
+      filteredSpots = [...filteredSpots].sort((a, b) => a.rating - b.rating);
+      break;
+    case "gender-neutral":
+      filteredSpots = filteredSpots.filter(
+        (spot) => spot.type === "gender-neutral",
+      );
+      break;
+    case "accessible":
+      filteredSpots = filteredSpots.filter((spot) => spot.type === "accessible");
+      break;
+    case "near-me":
+      if (userLocation) {
+        filteredSpots = [...filteredSpots].sort(
+          (a, b) =>
+            getDistanceInMiles(userLocation, a) -
+            getDistanceInMiles(userLocation, b),
+        );
+      }
+      break;
+    default:
+      break;
+  }
+
+  const openSpotCount = spots.filter((spot) => spot.isOpen).length;
+  const averageRating =
+    spots.length === 0
+      ? 0
+      : Math.round(
+          (spots.reduce((sum, spot) => sum + spot.rating, 0) / spots.length) *
+            10,
+        ) / 10;
+
   if (isLoading) {
     return (
       <main className="min-h-screen bg-amber-50">
         <Navbar />
         <ToiletBG />
         <div className="relative z-10 flex min-h-[calc(100vh-5rem)] items-center justify-center px-4">
-          <div className="w-full max-w-xl rounded-xl bg-rose-100 p-8 text-center shadow-lg font-rubik text-amber-900">
+          <div className="w-full max-w-xl rounded-xl bg-rose-100 p-8 text-center font-rubik text-amber-900 shadow-lg">
             Loading dashboard...
           </div>
         </div>
@@ -119,7 +255,8 @@ export default function Dashboard() {
   return (
     <main className="min-h-screen bg-amber-50">
       <Navbar />
-      
+      <ToiletBG />
+
       <div className="relative z-10 grid min-h-[calc(100vh-5rem)] grid-cols-1 lg:grid-cols-3">
         <aside className="border-b border-amber-900/20 bg-white/90 p-6 backdrop-blur-sm lg:border-r lg:border-b-0 lg:p-8">
           <div className="relative">
@@ -132,59 +269,48 @@ export default function Dashboard() {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search poop spots..."
-              className="h-12 w-full rounded-full border border-amber-900/60 bg-white pl-11 pr-5 text-amber-900 placeholder:text-amber-900/60 focus:outline-none focus:ring-2 focus:ring-amber-900 transition"
+              className="h-12 w-full rounded-full border border-amber-900/60 bg-white pl-11 pr-5 text-amber-900 placeholder:text-amber-900/60 transition focus:outline-none focus:ring-2 focus:ring-amber-900"
             />
           </div>
 
-          <div className="mt-7">
-            <h2 className="font-rubik text-2xl font-semibold text-amber-900">
-              Poop Spots <FilterDropdown />
-            </h2>
-            <p className="font-rubik text-sm text-gray-500">
-              {filteredSpots.length} result
-              {filteredSpots.length === 1 ? "" : "s"}
-            </p>
+          <div className="mt-7 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="font-rubik text-2xl font-semibold text-amber-900">
+                Poop Spots
+              </h2>
+              <p className="font-rubik text-sm text-gray-500">
+                {filteredSpots.length} result
+                {filteredSpots.length === 1 ? "" : "s"} • {getFilterLabel(activeFilter)}
+              </p>
+            </div>
+
+            <FilterDropdown value={activeFilter} onChange={setActiveFilter} />
           </div>
 
-          {/* <div> 
+          {errorMessage ? (
+            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 font-rubik text-sm text-red-700">
+              {errorMessage}
+            </p>
+          ) : null}
 
-            <button className = "px-4 py-2 bg-amber-900 text-white rounded-full hover:bg-amber-800 transition"> 
-              Near Me
-            </button> 
-
-            <button className = "px-4 py-2 bg-amber-900 text-white rounded-full hover:bg-amber-800 transition"> 
-              Accessible
-            </button>
-
-             <button className = "px-4 py-2 bg-amber-900 text-white rounded-full hover:bg-amber-800 transition"> 
-              Gender Neutral
-            </button>
-
-            <button className = "px-4 py-2 bg-amber-900 text-white rounded-full hover:bg-amber-800 transition"> 
-              Top Rated
-            </button> 
-
-            <button className = "px-4 py-2 bg-amber-900 text-white rounded-full hover:bg-amber-800 transition"> 
-              Worst Rated
-            </button> 
-
-          </div> */}
+          {activeFilter === "near-me" && locationError ? (
+            <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 font-rubik text-sm text-amber-900">
+              {locationError}
+            </p>
+          ) : null}
 
           <div className="mt-5 space-y-3">
-             {filteredSpots.map((spot) => (
-          <SpotCard key={spot.id} spot={spot} />
-        ))}
+            {filteredSpots.map((spot) => (
+              <SpotCard key={spot.id} spot={spot} />
+            ))}
 
             {filteredSpots.length === 0 ? (
               <p className="rounded-xl border border-dashed border-amber-900/50 bg-amber-50 p-4 font-rubik text-sm text-gray-600">
-                No spots match your search yet.
+                No spots match your search and filter yet.
               </p>
             ) : null}
           </div>
         </aside>
-        <div className="col-span-2 p-6">
-          <h1>Main Content</h1>
-        </div>
       </div>
     </main>
   );

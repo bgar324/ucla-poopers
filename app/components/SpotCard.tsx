@@ -8,6 +8,9 @@ interface SpotItem {
   rating: number
   name: string
   detail: string
+  reviewCount: number
+  isOpen: boolean
+  typeLabel: string
 }
 
 export default function SpotCard({ spot }: { spot: SpotItem }) {
@@ -20,13 +23,31 @@ export default function SpotCard({ spot }: { spot: SpotItem }) {
         {spot.name}
       </p>
 
-      <div className=" flex items-center">
+      <div className="mt-2 flex items-center gap-3">
         <Rating value={spot.rating} />
+        <span className="font-rubik text-sm text-gray-600">
+          {spot.rating.toFixed(1)} ({spot.reviewCount})
+        </span>
       </div>
 
        <p className="mt-1 font-rubik text-sm text-gray-600">
         {spot.detail}
       </p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <span className="rounded-full bg-amber-100 px-2 py-1 font-rubik text-xs text-amber-900">
+          {spot.typeLabel}
+        </span>
+        <span
+          className={`rounded-full px-2 py-1 font-rubik text-xs ${
+            spot.isOpen
+              ? "bg-green-100 text-green-700"
+              : "bg-red-100 text-red-700"
+          }`}
+        >
+          {spot.isOpen ? "Open" : "Closed"}
+        </span>
+      </div>
 
     </Link>
   )

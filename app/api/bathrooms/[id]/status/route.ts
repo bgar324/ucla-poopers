@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
 interface BathroomStatusRouteProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function GET(
@@ -10,7 +10,7 @@ export async function GET(
   { params }: BathroomStatusRouteProps,
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     const bathroom = await prisma.bathroom.findUnique({
       where: { id },
@@ -42,7 +42,7 @@ export async function PATCH(
   { params }: BathroomStatusRouteProps,
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { isOpen } = body;
 
