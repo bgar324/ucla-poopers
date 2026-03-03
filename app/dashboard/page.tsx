@@ -119,8 +119,7 @@ export default function Dashboard() {
   return (
     <main className="min-h-screen bg-amber-50">
       <Navbar />
-      <ToiletBG />
-
+      
       <div className="relative z-10 grid min-h-[calc(100vh-5rem)] grid-cols-1 lg:grid-cols-3">
         <aside className="border-b border-amber-900/20 bg-white/90 p-6 backdrop-blur-sm lg:border-r lg:border-b-0 lg:p-8">
           <div className="relative">

@@ -26,7 +26,7 @@ export default function FilterDropdown() {
       {/* Button */}
       <button
         onClick={() => setOpen(!open)}
-        className="px-4 py-2 text-amber-900 rounded-xl shadow hover:bg-rose-200 transition"
+        className="px-4 py-2 text-amber-900 rounded-xl shadow hover:bg-rose-50 transition cursor-pointer"
       >
         <ListFilter size={18} />
       </button>
@@ -41,19 +41,19 @@ export default function FilterDropdown() {
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-lg border border-gray-100 p-2 z-50"
           >
-            <button className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg">
+            <button className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg cursor-pointer">
                 Near Me
             </button>
-            <button className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg">
+            <button className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg cursor-pointer">
                 Top Rated
             </button>
-            <button className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg">
+            <button className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg cursor-pointer">
                 Worst Rated
             </button>
-             <button className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg">
+             <button className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg cursor-pointer">
                 Gender Neutral
             </button>
-            <button className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg">
+            <button className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded-lg cursor-pointer">
                 Accessible
             </button>
           </motion.div>
