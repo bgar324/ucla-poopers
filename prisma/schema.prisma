@@ -31,9 +31,9 @@ model Bathroom {
   longitude   Float
   type        String
   is_closed   Boolean  @default(false)
-  created_by  String
+  created_by  String?
 
-  creator     User     @relation("UserBathrooms", fields: [created_by], references: [id])
+  creator     User?    @relation("UserBathrooms", fields: [created_by], references: [id])
   reviews     Review[]
 }
 
