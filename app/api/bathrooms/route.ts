@@ -1,8 +1,9 @@
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
+// Helper to format bathroom types
 function formatBathroomType(type: string): string {
   switch (type) {
     case "gender-neutral":
@@ -14,30 +15,66 @@ function formatBathroomType(type: string): string {
   }
 }
 
+// Helper to calculate average rating
 function getAverageRating(ratings: number[]): number {
-  if (ratings.length === 0) {
-    return 0;
-  }
-
+  if (ratings.length === 0) return 0;
   const total = ratings.reduce((sum, rating) => sum + rating, 0);
   return Math.round((total / ratings.length) * 10) / 10;
 }
 
-export async function GET() {
+// POST — add a new bathroom
+export async function POST(request: NextRequest) {
   try {
+    const body = await request.json();
+    const { name, building, floor, latitude, longitude, type } = body;
+
+    if (!name || !building || floor === undefined || !latitude || !longitude || !type) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    const bathroom = await prisma.bathroom.create({
+      data: {
+        name,
+        building,
+        floor: Number(floor),
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+        type,
+      },
+    });
+
+    return NextResponse.json(bathroom, { status: 201 });
+  } catch (error) {
+    console.error("CREATE BATHROOM ERROR:", error);
+    return NextResponse.json({ error: "Failed to create bathroom" }, { status: 500 });
+  }
+}
+
+// GET — fetch bathrooms with optional filters and formatted response
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+
+    const type = searchParams.get("type");
+    const building = searchParams.get("building");
+    const floor = searchParams.get("floor");
+
     const bathrooms = await prisma.bathroom.findMany({
+      where: {
+        ...(type && { type }),
+        ...(building && { building }),
+        ...(floor && { floor: Number(floor) }),
+      },
       orderBy: [{ building: "asc" }, { floor: "asc" }],
       include: {
         reviews: {
           orderBy: { created_at: "asc" },
-          select: {
-            rating: true,
-            description: true,
-          },
+          select: { rating: true, description: true },
         },
       },
     });
 
+    // Format response
     const spots = bathrooms.map((bathroom) => {
       const ratings = bathroom.reviews.map((review) => review.rating);
       const averageRating = getAverageRating(ratings);
@@ -63,8 +100,7 @@ export async function GET() {
 
     return NextResponse.json({ bathrooms: spots });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load bathrooms.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("GET BATHROOMS ERROR:", error);
+    return NextResponse.json({ error: "Failed to fetch bathrooms" }, { status: 500 });
   }
 }

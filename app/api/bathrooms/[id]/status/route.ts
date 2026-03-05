@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+<<<<<<< HEAD
 interface BathroomStatusRouteProps {
   params: Promise<{ id: string }>;
 }
@@ -11,32 +12,99 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+=======
+//add bathroom
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+>>>>>>> 9e45d18 (updated the add bathroom function)
 
-    const bathroom = await prisma.bathroom.findUnique({
-      where: { id },
-      select: { is_closed: true },
-    });
+    const {
+      name,
+      building,
+      floor,
+      latitude,
+      longitude,
+      type,
+      supabaseAuthId,
+    } = body;
 
-    if (!bathroom) {
+    if (!name || !building || floor === undefined || !latitude || !longitude || !type || !supabaseAuthId) {
       return NextResponse.json(
-        { error: "Bathroom not found" },
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { supabaseAuthId },
+    });
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found in database" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({
-      bathroomId: id,
-      isOpen: !bathroom.is_closed,
+    const bathroom = await prisma.bathroom.create({
+      data: {
+        name,
+        building,
+        floor: Number(floor),
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+        type,
+        created_by: user.id,
+      },
     });
 
+    return NextResponse.json(bathroom, { status: 201 });
+
   } catch (error) {
-    console.error(error);
+    console.error("CREATE BATHROOM ERROR:", error);
     return NextResponse.json(
-      { error: "Failed to fetch bathroom status" },
+      { error: "Failed to create bathroom" },
       { status: 500 }
     );
   }
 }
+
+
+//retrieve data
+interface BathroomStatusRouteProps {
+  params: { id: string };
+}
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+
+    const type = searchParams.get("type");
+    const building = searchParams.get("building");
+    const floor = searchParams.get("floor");
+
+    const bathrooms = await prisma.bathroom.findMany({
+      where: {
+        ...(type && { type }),
+        ...(building && { building }),
+        ...(floor && { floor: Number(floor) }),
+      },
+      include: {
+        reviews: true,
+      },
+    });
+
+    return NextResponse.json(bathrooms);
+
+  } catch (error) {
+    console.error("GET BATHROOMS ERROR:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch bathrooms" },
+      { status: 500 }
+    );
+  }
+}
+
+//bathroom toggle
 export async function PATCH(
   request: NextRequest,
   { params }: BathroomStatusRouteProps,
