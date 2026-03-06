@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import OpenClose from "./OpenClose";
+import Rating from "@/app/components/Rating";
 import Reviews from "./Reviews";
 
 interface BathroomDetailPageProps {
@@ -10,12 +11,14 @@ interface BathroomDetailPageProps {
 
 function formatBathroomType(type: string) {
   switch (type) {
-    case "gender-neutral":
-      return "Gender Neutral";
     case "accessible":
       return "Accessible";
+    case "female":
+      return "Female";
+    case "male":
+      return "Male";
     default:
-      return "Standard";
+      return "Gender Neutral";
   }
 }
 
@@ -33,6 +36,7 @@ export default async function BathroomDetailPage({
           id: true,
           rating: true,
           description: true,
+          user: { select: { username: true } },
         },
       },
     },
@@ -42,9 +46,18 @@ export default async function BathroomDetailPage({
     notFound();
   }
 
-  const reviews = bathroom.reviews.map(
-    (review) => `${review.rating}/5 - ${review.description}`,
-  );
+  const reviews = bathroom.reviews.map((r) => ({
+    id: r.id,
+    rating: r.rating,
+    description: r.description,
+    username: r.user?.username ?? "Anonymous",
+  }));
+
+  const ratings = bathroom.reviews.map((r) => r.rating);
+  const averageRating =
+    ratings.length === 0
+      ? 0
+      : Math.round((ratings.reduce((s, r) => s + r, 0) / ratings.length) * 10) / 10;
 
   return (
     <main className="min-h-screen bg-amber-50 px-4 py-10">
@@ -60,6 +73,17 @@ export default async function BathroomDetailPage({
         </div>
 
         <OpenClose isOpen={!bathroom.is_closed} />
+
+        <div className="flex items-center gap-3">
+          <Rating value={averageRating} />
+          <span className="font-rubik text-amber-900">
+            {averageRating.toFixed(1)}/5 poops
+            {reviews.length > 0 && (
+              <span className="text-gray-600 font-normal"> ({reviews.length} review{reviews.length === 1 ? "" : "s"})</span>
+            )}
+          </span>
+        </div>
+
         <Reviews reviews={reviews} />
 
         <Link

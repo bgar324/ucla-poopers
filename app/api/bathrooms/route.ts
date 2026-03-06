@@ -6,12 +6,14 @@ export const runtime = "nodejs";
 // Helper to format bathroom types
 function formatBathroomType(type: string): string {
   switch (type) {
-    case "gender-neutral":
-      return "Gender Neutral";
     case "accessible":
       return "Accessible";
+    case "female":
+      return "Female";
+    case "male":
+        return "Male";
     default:
-      return "Standard";
+      return "Gender Neutral";
   }
 }
 

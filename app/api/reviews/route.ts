@@ -1,52 +1,104 @@
-import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma"; // same prisma import as your bathrooms route
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
 
-export async function POST(req: Request) {
+//add review to existing bathroom or create a new one
+export async function POST(req: NextRequest) {
   try {
-    const { userId, bathroom, review } = await req.json();
+    const body = await req.json();
+    const { supabaseAuthId, bathroomId, bathroom, review } = body;
 
-    if (!userId || !bathroom || !review) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    if (!supabaseAuthId || !review) {
+      return NextResponse.json(
+        { error: "Missing required fields (supabaseAuthId, review)" },
+        { status: 400 }
+      );
     }
 
-    // Check if bathroom exists
-    let existingBathroom = await prisma.bathroom.findFirst({
-      where: {
-        name: bathroom.name,
-        building: bathroom.building,
-        floor: bathroom.floor,
-      },
+    if (!bathroomId && !bathroom) {
+      return NextResponse.json(
+        { error: "Provide either bathroomId or bathroom (new bathroom data)" },
+        { status: 400 }
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { supabaseAuthId },
+      select: { id: true },
     });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
-    // If not, create it
-    if (!existingBathroom) {
-      const bathroomData: any = { ...bathroom };
-      if (userId) {
-        // Check that user exists first
-        const userExists = await prisma.user.findUnique({ where: { id: userId } });
-        if (userExists) {
-          bathroomData.creator = { connect: { id: userId } };
-        }
+    let targetBathroom;
+
+    if (bathroomId) {
+      targetBathroom = await prisma.bathroom.findUnique({
+        where: { id: bathroomId },
+      });
+      if (!targetBathroom) {
+        return NextResponse.json({ error: "Bathroom not found" }, { status: 404 });
       }
-
-      existingBathroom = await prisma.bathroom.create({
-        data: bathroomData,
+    } else {
+      const { name, building, floor, latitude, longitude, type } = bathroom;
+      if (!name || !building || floor === undefined || !latitude || !longitude || !type) {
+        return NextResponse.json(
+          { error: "New bathroom requires name, building, floor, latitude, longitude, type" },
+          { status: 400 }
+        );
+      }
+      targetBathroom = await prisma.bathroom.create({
+        data: {
+          name,
+          building,
+          floor: Number(floor),
+          latitude: Number(latitude),
+          longitude: Number(longitude),
+          type,
+          created_by: user.id,
+        },
       });
     }
 
-    // Add review
     const newReview = await prisma.review.create({
       data: {
-        rating: review.rating,
-        description: review.description,
-        user: { connect: { id: userId } },
-        bathroom: { connect: { id: existingBathroom.id } },
+        rating: Number(review.rating),
+        description: review.description ?? "",
+        user_id: user.id,
+        bathroom_id: targetBathroom.id,
       },
     });
 
     return NextResponse.json({ review: newReview });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("ADD REVIEW ERROR:", err);
     return NextResponse.json({ error: "Failed to add review" }, { status: 500 });
+  }
+}
+
+//get all reviews
+export async function GET() {
+  try {
+    const reviews = await prisma.review.findMany({
+      orderBy: { created_at: "desc" },
+      include: {
+        user: { select: { username: true } },
+        bathroom: {
+          select: {
+            id: true,
+            name: true,
+            building: true,
+            floor: true,
+            type: true,
+          },
+        },
+      },
+    });
+    return NextResponse.json({ reviews });
+  } catch (err: unknown) {
+    console.error("GET REVIEWS ERROR:", err);
+    return NextResponse.json(
+      { error: "Failed to fetch reviews" },
+      { status: 500 }
+    );
   }
 }
