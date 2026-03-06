@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 //add review to existing bathroom or create a new one
 export async function POST(req: NextRequest) {
@@ -59,6 +60,21 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const existingReview = await prisma.review.findFirst({
+      where: {
+        bathroom_id: targetBathroom.id,
+        user_id: user.id,
+      },
+      select: { id: true },
+    });
+
+    if (existingReview) {
+      return NextResponse.json(
+        { error: "You have already rated this bathroom." },
+        { status: 409 },
+      );
+    }
+
     const newReview = await prisma.review.create({
       data: {
         rating: Number(review.rating),
@@ -70,6 +86,24 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ review: newReview });
   } catch (err: unknown) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const uniqueTarget = err.meta?.target;
+      const isBathroomUserUnique =
+        (Array.isArray(uniqueTarget) &&
+          uniqueTarget.includes("bathroom_id") &&
+          uniqueTarget.includes("user_id")) ||
+        (typeof uniqueTarget === "string" &&
+          uniqueTarget.includes("bathroom_id") &&
+          uniqueTarget.includes("user_id"));
+
+      if (isBathroomUserUnique) {
+        return NextResponse.json(
+          { error: "You have already rated this bathroom." },
+          { status: 409 },
+        );
+      }
+    }
+
     console.error("ADD REVIEW ERROR:", err);
     return NextResponse.json({ error: "Failed to add review" }, { status: 500 });
   }

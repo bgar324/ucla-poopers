@@ -18,33 +18,35 @@ model User {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  bathrooms        Bathroom[] @relation("UserBathrooms")
-  reviews          Review[]
+  bathrooms Bathroom[] @relation("UserBathrooms")
+  reviews   Review[]
 }
 
 model Bathroom {
-  id           String   @id @default(cuid())
-  name        String
-  building    String
-  floor       Int
-  latitude    Float
-  longitude   Float
-  type        String
-  is_closed   Boolean  @default(false)
-  created_by  String?
+  id         String  @id @default(cuid())
+  name       String
+  building   String
+  floor      Int
+  latitude   Float
+  longitude  Float
+  type       String
+  is_closed  Boolean @default(false)
+  created_by String?
 
-  creator     User?    @relation("UserBathrooms", fields: [created_by], references: [id])
-  reviews     Review[]
+  creator User?    @relation("UserBathrooms", fields: [created_by], references: [id])
+  reviews Review[]
 }
 
 model Review {
-  id           String   @id @default(uuid())
-  bathroom_id  String
-  user_id      String
-  rating       Int
-  description  String
-  created_at   DateTime @default(now())
+  id          String   @id @default(uuid())
+  bathroom_id String
+  user_id     String
+  rating      Int
+  description String
+  created_at  DateTime @default(now())
 
-  bathroom     Bathroom @relation(fields: [bathroom_id], references: [id])
-  user         User     @relation(fields: [user_id], references: [id])
+  bathroom Bathroom @relation(fields: [bathroom_id], references: [id])
+  user     User     @relation(fields: [user_id], references: [id])
+
+  @@unique([bathroom_id, user_id])
 }

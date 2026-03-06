@@ -65,9 +65,15 @@ export default function AddReviewPage() {
   }, [router]);
 
   useEffect(() => {
+    if (!supabaseAuthId) {
+      return;
+    }
+
     const load = async () => {
+      setLoadingBathrooms(true);
       try {
-        const res = await fetch("/api/bathrooms");
+        const params = new URLSearchParams({ supabaseAuthId });
+        const res = await fetch(`/api/bathrooms?${params.toString()}`);
         const data = (await res.json()) as { bathrooms?: BathroomOption[]; error?: string };
         if (res.ok && data.bathrooms) {
           setBathrooms(data.bathrooms);
@@ -77,7 +83,7 @@ export default function AddReviewPage() {
       }
     };
     void load();
-  }, []);
+  }, [supabaseAuthId]);
 
   useEffect(() => {
     if (!navigator.geolocation) return;

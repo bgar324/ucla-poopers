@@ -3,6 +3,10 @@ import prisma from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
+function isUuidLike(value: string): boolean {
+  return /^[0-9a-fA-F-]{36}$/.test(value);
+}
+
 // Helper to format bathroom types
 function formatBathroomType(type: string): string {
   switch (type) {
@@ -60,12 +64,29 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get("type");
     const building = searchParams.get("building");
     const floor = searchParams.get("floor");
+    const supabaseAuthId = searchParams.get("supabaseAuthId");
+
+    let excludeReviewedByUserId: string | null = null;
+    if (supabaseAuthId && isUuidLike(supabaseAuthId)) {
+      const user = await prisma.user.findUnique({
+        where: { supabaseAuthId },
+        select: { id: true },
+      });
+      excludeReviewedByUserId = user?.id ?? null;
+    }
 
     const bathrooms = await prisma.bathroom.findMany({
       where: {
         ...(type && { type }),
         ...(building && { building }),
         ...(floor && { floor: Number(floor) }),
+        ...(excludeReviewedByUserId && {
+          reviews: {
+            none: {
+              user_id: excludeReviewedByUserId,
+            },
+          },
+        }),
       },
       orderBy: [{ building: "asc" }, { floor: "asc" }],
       include: {
