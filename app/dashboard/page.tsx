@@ -26,6 +26,13 @@ interface BathroomSpot {
   reviewCount: number;
 }
 
+interface AddReviewModalProps {
+  userId: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+
 function toRadians(value: number) {
   return (value * Math.PI) / 180;
 }
@@ -91,10 +98,20 @@ export default function Dashboard() {
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>("all");
   const [errorMessage, setErrorMessage] = useState("");
   const [locationError, setLocationError] = useState("");
+  const [showAddBathroom, setShowAddBathroom] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) setUserId(session.user.id);
+    };
+    void fetchUser();
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -282,6 +299,13 @@ export default function Dashboard() {
                 {filteredSpots.length} result
                 {filteredSpots.length === 1 ? "" : "s"} • {getFilterLabel(activeFilter)}
               </p>
+              {/*add-bathroom*/}
+              <button
+                onClick={() => router.push("/add-review")}
+                className="mt-4 w-full rounded-full bg-amber-900 px-4 py-2 font-semibold text-white hover:bg-amber-800"
+              >
+                Add Review
+              </button>
             </div>
 
             <FilterDropdown value={activeFilter} onChange={setActiveFilter} />
