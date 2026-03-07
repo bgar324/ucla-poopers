@@ -1,76 +1,94 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { useEffect, useState } from "react";
+import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+
 import { bathrooms } from "../data/bathrooms";
+import SpotCard from "./SpotCard";
+
+interface Bathroom {
+  id: string;
+  name: string;
+  detail: string;
+  lat: number;
+  lng: number;
+  gender: string;
+  accessible: boolean;
+  rating: number;
+  reviewCount: number;
+  isOpen: boolean;
+  typeLabel: string;
+}
+
+const bathroomIcon = L.icon({
+  iconUrl: "/assets/bathroom-marker.png",
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+  popupAnchor: [0, -28],
+});
+
+const userIcon = L.icon({
+  iconUrl: "/assets/cur-loc.png",
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+});
 
 export default function BathroomMap() {
-    const[query, setQuery] = useState("");
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
 
-    const filteredBathrooms = useMemo(() => {
-        return bathrooms.filter((bathroom) =>
-            bathroom.name.toLowerCase().includes(query.toLowerCase())
-        );
-    }, [query]);
+  const center: [number, number] = [34.0705, -118.442]; // UCLA center
 
-    const position: [number, number] = [34.0689, -118.4452];
+  useEffect(() => {
+    if (!navigator.geolocation) return;
 
-    return (
-        <div>
-            <input
-                type="text"
-                placeholder="Search bathrooms..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-            />
-
-            <div>
-                <div>
-                    {filteredBathrooms.length === 0 ? (
-                        <p>No bathrooms found.</p>
-                    ) : (
-                        filteredBathrooms.map((bathroom) => (
-                            <div key={bathroom.id}>
-                                <p>{bathroom.name}</p>
-                                <p>
-                                    {bathroom.gender}
-                                    {bathroom.accessible ? "Accessible" : "Not Accessible"}
-                                </p>
-                            </div>
-                        ))
-                    )}
-                </div>
-
-                <div>
-                    <MapContainer
-                        center={position}
-                        zoom={16}
-                        scrollWheelZoom={true}
-                        className="h-[500px] w-full"
-                    >
-                        <TileLayer
-                            attribution="&copy; OpenStreetMap contributors"
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        />
-
-                        {filteredBathrooms.map((bathroom) => (
-                            <Marker
-                                key={bathroom.id}
-                                position={[bathroom.lat, bathroom.lng]}
-                            >
-                                <Popup>
-                                    <div>
-                                        <p>{bathroom.name}</p>
-                                        <p>{bathroom.gender}</p>
-                                        <p>{bathroom.accessible ? "Accessible" : "Not Accessible"}</p>
-                                    </div>
-                                </Popup>
-                            </Marker>
-                        ))}
-                    </MapContainer>
-                </div>
-            </div>
-        </div>
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation([
+          position.coords.latitude,
+          position.coords.longitude,
+        ]);
+      },
+      () => {
+        console.log("Location permission denied");
+      }
     );
+  }, []);
+
+  return (
+    <MapContainer
+      center={center}
+      zoom={16}
+      scrollWheelZoom={true}
+      className="h-[500px] w-full rounded-xl"
+    >
+      <TileLayer
+        attribution="&copy; OpenStreetMap contributors"
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+
+      {/* Bathroom markers */}
+      {bathrooms.map((bathroom: Bathroom) => (
+        <Marker
+          key={bathroom.id}
+          position={[bathroom.lat, bathroom.lng]}
+          icon={bathroomIcon}
+        >
+          <Popup closeButton={false} offset={[0, -24]}>
+            <div className="w-[280px]">
+              <SpotCard spot={bathroom} />
+            </div>
+          </Popup>
+        </Marker>
+      ))}
+
+      {/* User location marker */}
+      {userLocation && (
+        <Marker position={userLocation} icon={userIcon}>
+          <Popup>You are here</Popup>
+        </Marker>
+      )}
+    </MapContainer>
+  );
 }
