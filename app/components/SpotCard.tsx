@@ -13,12 +13,16 @@ interface SpotItem {
   typeLabel: string
 }
 
-export default function SpotCard({ spot }: { spot: SpotItem }) {
+interface SpotCardProps {
+  spot: SpotItem
+  href?: string
+  onClick?: () => void
+  isSelected?: boolean
+}
+
+function SpotCardBody({ spot }: { spot: SpotItem }) {
   return (
-    <Link
-      href={`/bathroom/${spot.id}`}
-      className="block rounded-xl border border-amber-900 bg-rose-50 p-4 shadow-sm transition hover:shadow-md"
-    >
+    <>
       <p className="font-rubik font-medium text-amber-900">
         {spot.name}
       </p>
@@ -30,7 +34,7 @@ export default function SpotCard({ spot }: { spot: SpotItem }) {
         </span>
       </div>
 
-       <p className="mt-1 font-rubik text-sm text-gray-600">
+      <p className="mt-1 font-rubik text-sm text-gray-600">
         {spot.detail}
       </p>
 
@@ -48,7 +52,39 @@ export default function SpotCard({ spot }: { spot: SpotItem }) {
           {spot.isOpen ? "Open" : "Closed"}
         </span>
       </div>
+    </>
+  )
+}
 
+export default function SpotCard({
+  spot,
+  href,
+  onClick,
+  isSelected = false,
+}: SpotCardProps) {
+  const className = `block w-full rounded-xl border border-amber-900 p-4 text-left shadow-sm transition hover:shadow-md ${
+    isSelected ? "bg-amber-50 shadow-md" : "bg-rose-50"
+  }`
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={isSelected}
+        className={className}
+      >
+        <SpotCardBody spot={spot} />
+      </button>
+    )
+  }
+
+  return (
+    <Link
+      href={href ?? `/bathroom/${spot.id}`}
+      className={className}
+    >
+      <SpotCardBody spot={spot} />
     </Link>
   )
 }

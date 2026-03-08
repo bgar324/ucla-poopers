@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import FilterDropdown, {
   type DashboardFilter,
 } from "../components/FilterDropdown";
+import BathroomDetailPanel from "../components/BathroomDetailPanel";
 import SpotCard from "../components/SpotCard";
 import ToiletBG from "../components/ToiletBG";
 
@@ -243,16 +244,13 @@ export default function Dashboard() {
     return results;
   }, [spots, searchQuery, activeFilter, userLocation]);
 
-  const sidebarSpots = useMemo(() => {
-    if (!selectedBathroomId) {
-      return filteredSpots;
+  useEffect(() => {
+    if (
+      selectedBathroomId &&
+      !filteredSpots.some((spot) => spot.id === selectedBathroomId)
+    ) {
+      setSelectedBathroomId(null);
     }
-
-    const selectedSpot = filteredSpots.find(
-      (spot) => spot.id === selectedBathroomId,
-    );
-
-    return selectedSpot ? [selectedSpot] : filteredSpots;
   }, [filteredSpots, selectedBathroomId]);
 
   const handleMarkerClick = (bathroomId: string) => {
@@ -305,8 +303,8 @@ export default function Dashboard() {
                 Poop Spots
               </h2>
               <p className="font-rubik text-sm text-gray-500">
-                {sidebarSpots.length} result
-                {sidebarSpots.length === 1 ? "" : "s"} •{" "}
+                {filteredSpots.length} result
+                {filteredSpots.length === 1 ? "" : "s"} •{" "}
                 {getFilterLabel(activeFilter)}
               </p>
               <button
@@ -333,7 +331,7 @@ export default function Dashboard() {
               onClick={() => setSelectedBathroomId(null)}
               className="mt-4 rounded-xl border border-amber-900/30 bg-amber-50 px-4 py-2 font-rubik text-sm text-amber-900 transition hover:bg-amber-100"
             >
-              Show all spots again
+              Show map again
             </button>
           ) : null}
 
@@ -350,18 +348,25 @@ export default function Dashboard() {
           ) : null}
 
           <div className="mt-5 space-y-3 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pb-6 lg:pr-2">
-            {sidebarSpots.map((spot) => (
+            {filteredSpots.map((spot) => (
               <div
                 key={spot.id}
-                onClickCapture={() => setSelectedBathroomId(spot.id)}
                 onMouseEnter={() => setHoveredBathroomId(spot.id)}
                 onMouseLeave={() => setHoveredBathroomId(null)}
               >
-                <SpotCard spot={spot} />
+                <SpotCard
+                  spot={spot}
+                  onClick={() =>
+                    setSelectedBathroomId((current) =>
+                      current === spot.id ? null : spot.id,
+                    )
+                  }
+                  isSelected={spot.id === selectedBathroomId}
+                />
               </div>
             ))}
 
-            {sidebarSpots.length === 0 ? (
+            {filteredSpots.length === 0 ? (
               <p className="rounded-xl border border-dashed border-amber-900/50 bg-amber-50 p-4 font-rubik text-sm text-gray-600">
                 No spots match your search and filter yet.
               </p>
@@ -370,16 +375,20 @@ export default function Dashboard() {
         </aside>
 
         <section className="relative min-h-[500px] lg:h-full lg:min-h-0">
-          <div className="absolute inset-0">
-            {!errorMessage ? (
-              <BathroomMap
-                bathrooms={filteredSpots}
-                selectedBathroomId={selectedBathroomId}
-                hoveredBathroomId={hoveredBathroomId}
-                onMarkerClick={handleMarkerClick}
-              />
-            ) : null}
-          </div>
+          {selectedBathroomId ? (
+            <BathroomDetailPanel bathroomId={selectedBathroomId} />
+          ) : (
+            <div className="absolute inset-0">
+              {!errorMessage ? (
+                <BathroomMap
+                  bathrooms={filteredSpots}
+                  selectedBathroomId={selectedBathroomId}
+                  hoveredBathroomId={hoveredBathroomId}
+                  onMarkerClick={handleMarkerClick}
+                />
+              ) : null}
+            </div>
+          )}
         </section>
       </div>
     </main>

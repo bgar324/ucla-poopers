@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Search } from "lucide-react";
 import Navbar from "../components/Navbar";
+import BathroomDetailPanel from "../components/BathroomDetailPanel";
 import FilterDropdown, {
   type DashboardFilter,
 } from "../components/FilterDropdown";
@@ -22,13 +23,6 @@ interface Bathroom {
   isOpen: boolean;
   rating: number;
   reviewCount: number;
-}
-
-interface BathroomMapProps {
-  bathrooms: Bathroom[];
-  selectedBathroomId: string | null;
-  hoveredBathroomId: string | null;
-  onMarkerClick: (bathroomId: string) => void;
 }
 
 const BathroomMap = dynamic(
@@ -155,16 +149,13 @@ export default function MapPage() {
     return results;
   }, [bathrooms, searchQuery, activeFilter]);
 
-  const sidebarBathrooms = useMemo(() => {
-    if (!selectedBathroomId) {
-      return filteredBathrooms;
+  useEffect(() => {
+    if (
+      selectedBathroomId &&
+      !filteredBathrooms.some((bathroom) => bathroom.id === selectedBathroomId)
+    ) {
+      setSelectedBathroomId(null);
     }
-
-    const selectedBathroom = filteredBathrooms.find(
-      (bathroom) => bathroom.id === selectedBathroomId
-    );
-
-    return selectedBathroom ? [selectedBathroom] : filteredBathrooms;
   }, [filteredBathrooms, selectedBathroomId]);
 
   const handleMarkerClick = (bathroomId: string) => {
@@ -202,8 +193,8 @@ export default function MapPage() {
                 Poop Spots
               </h2>
               <p className="font-rubik text-sm text-gray-500">
-                {sidebarBathrooms.length} result
-                {sidebarBathrooms.length === 1 ? "" : "s"} •{" "}
+                {filteredBathrooms.length} result
+                {filteredBathrooms.length === 1 ? "" : "s"} •{" "}
                 {getFilterLabel(activeFilter)}
               </p>
             </div>
@@ -223,7 +214,7 @@ export default function MapPage() {
               onClick={() => setSelectedBathroomId(null)}
               className="mt-4 rounded-xl border border-amber-900/30 bg-amber-50 px-4 py-2 font-rubik text-sm text-amber-900 transition hover:bg-amber-100"
             >
-              Show all spots again
+              Show map again
             </button>
           ) : null}
 
@@ -237,18 +228,25 @@ export default function MapPage() {
             <p className="mt-4 font-rubik text-sm text-amber-900">Loading map...</p>
           ) : (
             <div className="mt-5 space-y-3 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pb-6 lg:pr-2">
-              {sidebarBathrooms.map((bathroom) => (
+              {filteredBathrooms.map((bathroom) => (
                 <div
                   key={bathroom.id}
-                  onClickCapture={() => setSelectedBathroomId(bathroom.id)}
                   onMouseEnter={() => setHoveredBathroomId(bathroom.id)}
                   onMouseLeave={() => setHoveredBathroomId(null)}
                 >
-                  <SpotCard spot={bathroom} />
+                  <SpotCard
+                    spot={bathroom}
+                    onClick={() =>
+                      setSelectedBathroomId((current) =>
+                        current === bathroom.id ? null : bathroom.id
+                      )
+                    }
+                    isSelected={bathroom.id === selectedBathroomId}
+                  />
                 </div>
               ))}
 
-              {sidebarBathrooms.length === 0 ? (
+              {filteredBathrooms.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-amber-900/50 bg-amber-50 p-4 font-rubik text-sm text-gray-600">
                   No spots match your search and filter yet.
                 </p>
@@ -258,16 +256,20 @@ export default function MapPage() {
         </aside>
 
         <section className="relative min-h-[500px] lg:h-full lg:min-h-0">
-          <div className="absolute inset-0">
-            {!isLoading && !errorMessage ? (
-              <BathroomMap
-                bathrooms={filteredBathrooms}
-                selectedBathroomId={selectedBathroomId}
-                hoveredBathroomId={hoveredBathroomId}
-                onMarkerClick={handleMarkerClick}
-              />
-            ) : null}
-          </div>
+          {selectedBathroomId ? (
+            <BathroomDetailPanel bathroomId={selectedBathroomId} />
+          ) : (
+            <div className="absolute inset-0">
+              {!isLoading && !errorMessage ? (
+                <BathroomMap
+                  bathrooms={filteredBathrooms}
+                  selectedBathroomId={selectedBathroomId}
+                  hoveredBathroomId={hoveredBathroomId}
+                  onMarkerClick={handleMarkerClick}
+                />
+              ) : null}
+            </div>
+          )}
         </section>
       </div>
     </main>
