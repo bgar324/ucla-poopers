@@ -24,22 +24,13 @@ interface Bathroom {
   reviewCount: number;
 }
 
-interface BathroomMapProps {
-  bathrooms: Bathroom[];
-  selectedBathroomId: string | null;
-  hoveredBathroomId: string | null;
-  onMarkerClick: (bathroomId: string) => void;
-}
-
 const BathroomMap = dynamic(
   () => import("../components/BathroomMap").then((mod) => mod.default),
   { ssr: false }
 );
 
 function matchesSearch(bathroom: Bathroom, query: string) {
-  if (!query) {
-    return true;
-  }
+  if (!query) return true;
 
   const haystack = [
     bathroom.name,
@@ -94,9 +85,7 @@ export default function MapPage() {
           | { bathrooms?: Bathroom[]; error?: string }
           | null;
 
-        if (!active) {
-          return;
-        }
+        if (!active) return;
 
         if (!response.ok || !data?.bathrooms) {
           throw new Error(data?.error ?? "Failed to load bathrooms.");
@@ -104,17 +93,13 @@ export default function MapPage() {
 
         setBathrooms(data.bathrooms);
       } catch (error) {
-        if (!active) {
-          return;
-        }
+        if (!active) return;
 
         setErrorMessage(
           error instanceof Error ? error.message : "Failed to load bathrooms."
         );
       } finally {
-        if (active) {
-          setIsLoading(false);
-        }
+        if (active) setIsLoading(false);
       }
     };
 
@@ -127,6 +112,7 @@ export default function MapPage() {
 
   const filteredBathrooms = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
+
     let results = bathrooms.filter((bathroom) =>
       matchesSearch(bathroom, query)
     );
@@ -156,9 +142,7 @@ export default function MapPage() {
   }, [bathrooms, searchQuery, activeFilter]);
 
   const sidebarBathrooms = useMemo(() => {
-    if (!selectedBathroomId) {
-      return filteredBathrooms;
-    }
+    if (!selectedBathroomId) return filteredBathrooms;
 
     const selectedBathroom = filteredBathrooms.find(
       (bathroom) => bathroom.id === selectedBathroomId
@@ -177,13 +161,14 @@ export default function MapPage() {
     <main className="min-h-screen bg-amber-50">
       <Navbar />
 
-      <div className="grid min-h-[calc(100vh-5rem)] grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <aside className="border-b border-amber-900/20 bg-white/90 p-6 backdrop-blur-sm lg:border-r lg:border-b-0 lg:p-8">
+      <div className="grid h-[calc(100vh-5rem)] grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <aside className="h-[calc(100vh-5rem)] overflow-y-auto border-b border-amber-900/20 bg-white/90 p-6 backdrop-blur-sm lg:border-r lg:border-b-0 lg:p-8">
           <div className="relative">
             <Search
               className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-amber-900/80"
               size={18}
             />
+
             <input
               type="text"
               value={searchQuery}
@@ -201,6 +186,7 @@ export default function MapPage() {
               <h2 className="font-rubik text-2xl font-semibold text-amber-900">
                 Poop Spots
               </h2>
+
               <p className="font-rubik text-sm text-gray-500">
                 {sidebarBathrooms.length} result
                 {sidebarBathrooms.length === 1 ? "" : "s"} •{" "}
@@ -234,9 +220,11 @@ export default function MapPage() {
           ) : null}
 
           {isLoading ? (
-            <p className="mt-4 font-rubik text-sm text-amber-900">Loading map...</p>
+            <p className="mt-4 font-rubik text-sm text-amber-900">
+              Loading map...
+            </p>
           ) : (
-            <div className="mt-5 space-y-3 overflow-y-auto pb-6">
+            <div className="mt-5 space-y-3 pb-6">
               {sidebarBathrooms.map((bathroom) => (
                 <div
                   key={bathroom.id}
@@ -262,16 +250,16 @@ export default function MapPage() {
           )}
         </aside>
 
-        <section className="relative min-h-[500px]">
-          <div className="absolute inset-0">
-            {!isLoading && !errorMessage ? (
+        <section className="h-[calc(100vh-5rem)] overflow-hidden">
+          <div className="h-full w-full">
+            {!isLoading && !errorMessage && (
               <BathroomMap
                 bathrooms={filteredBathrooms}
                 selectedBathroomId={selectedBathroomId}
                 hoveredBathroomId={hoveredBathroomId}
                 onMarkerClick={handleMarkerClick}
               />
-            ) : null}
+            )}
           </div>
         </section>
       </div>

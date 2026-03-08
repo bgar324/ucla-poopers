@@ -32,7 +32,7 @@ interface BathroomMapProps {
   onMarkerClick: (bathroomId: string) => void;
 }
 
-const defaultCenter: [number, number] = [34.06025, -118.4452];
+const defaultCenter: [number, number] = [34.06925, -118.4452];
 
 function makeIcon(url: string, size: number, anchorRatio = 1) {
   return new L.Icon({
@@ -99,8 +99,7 @@ function FlyToBathroom({
 
     const projected = map.project(targetLatLng, zoomLevel);
 
-    // adjust this number to fine-tune vertical centering
-    const offsetPoint = L.point(projected.x, projected.y + 500);
+    const offsetPoint = L.point(projected.x, projected.y);
 
     const offsetLatLng = map.unproject(offsetPoint, zoomLevel);
 
@@ -218,7 +217,7 @@ export default function BathroomMap({
       <MapContainer
         center={defaultCenter}
         zoom={16}
-        minZoom={15}
+        minZoom={16}
         maxZoom={18}
         scrollWheelZoom={true}
         dragging={true}
