@@ -9,13 +9,12 @@ import { useEffect, useMemo, useState } from "react";
 import FilterDropdown, {
   type DashboardFilter,
 } from "../components/FilterDropdown";
-import BathroomDetailPanel from "../components/BathroomDetailPanel";
 import SpotCard from "../components/SpotCard";
 import ToiletBG from "../components/ToiletBG";
 
 const BathroomMap = dynamic(
   () => import("../components/BathroomMap").then((mod) => mod.default),
-  { ssr: false },
+  { ssr: false }
 );
 
 interface BathroomSpot {
@@ -39,7 +38,7 @@ function toRadians(value: number) {
 
 function getDistanceInMiles(
   start: { latitude: number; longitude: number },
-  end: { latitude: number; longitude: number },
+  end: { latitude: number; longitude: number }
 ) {
   const earthRadiusMiles = 3958.8;
   const latDelta = toRadians(end.latitude - start.latitude);
@@ -96,12 +95,12 @@ export default function Dashboard() {
   const [spots, setSpots] = useState<BathroomSpot[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>("all");
-  const [activePanel, setActivePanel] = useState<"map" | "detail">("map");
+  const [selectedBuilding, setSelectedBuilding] = useState("all");
   const [selectedBathroomId, setSelectedBathroomId] = useState<string | null>(
-    null,
+    null
   );
   const [hoveredBathroomId, setHoveredBathroomId] = useState<string | null>(
-    null,
+    null
   );
   const [errorMessage, setErrorMessage] = useState("");
   const [locationError, setLocationError] = useState("");
@@ -148,7 +147,7 @@ export default function Dashboard() {
         }
 
         setErrorMessage(
-          error instanceof Error ? error.message : "Failed to load bathrooms.",
+          error instanceof Error ? error.message : "Failed to load bathrooms."
         );
       } finally {
         if (active) {
@@ -164,7 +163,7 @@ export default function Dashboard() {
         if (!session) {
           router.replace("/");
         }
-      },
+      }
     );
 
     return () => {
@@ -204,7 +203,7 @@ export default function Dashboard() {
         enableHighAccuracy: false,
         maximumAge: 300000,
         timeout: 5000,
-      },
+      }
     );
 
     return () => {
@@ -212,65 +211,77 @@ export default function Dashboard() {
     };
   }, [activeFilter, userLocation]);
 
+  const buildingOptions = useMemo(() => {
+    return Array.from(
+      new Set(
+        spots
+          .map((spot) => spot.building?.trim())
+          .filter((building): building is string => Boolean(building))
+      )
+    ).sort((a, b) => a.localeCompare(b));
+  }, [spots]);
+
   const filteredSpots = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    let results = spots.filter((spot) => matchesSearch(spot, query));
+  const query = searchQuery.trim().toLowerCase();
 
-    switch (activeFilter) {
-      case "top-rated":
-        results = [...results].sort((a, b) => b.rating - a.rating);
-        break;
-      case "worst-rated":
-        results = [...results].sort((a, b) => a.rating - b.rating);
-        break;
-      case "gender-neutral":
-        results = results.filter((spot) => spot.type === "gender-neutral");
-        break;
-      case "accessible":
-        results = results.filter((spot) => spot.type === "accessible");
-        break;
-      case "near-me":
-        if (userLocation) {
-          results = [...results].sort(
-            (a, b) =>
-              getDistanceInMiles(userLocation, a) -
-              getDistanceInMiles(userLocation, b),
-          );
-        }
-        break;
-      default:
-        break;
+  let results = spots.filter((spot) => matchesSearch(spot, query));
+
+  if (selectedBuilding !== "all") {
+    results = results.filter((spot) => spot.building === selectedBuilding);
+  }
+
+  switch (activeFilter) {
+    case "top-rated":
+      results = [...results].sort((a, b) => b.rating - a.rating);
+      break;
+
+    case "worst-rated":
+      results = [...results].sort((a, b) => a.rating - b.rating);
+      break;
+
+    case "gender-neutral":
+      results = results.filter((spot) => spot.type === "gender-neutral");
+      results = [...results].sort((a, b) => b.rating - a.rating);
+      break;
+
+    case "accessible":
+      results = results.filter((spot) => spot.type === "accessible");
+      results = [...results].sort((a, b) => b.rating - a.rating);
+      break;
+
+    case "near-me":
+      if (userLocation) {
+        results = [...results].sort(
+          (a, b) =>
+            getDistanceInMiles(userLocation, a) -
+            getDistanceInMiles(userLocation, b)
+        );
+      }
+      break;
+
+    default:
+      // default behavior: sort by rating
+      results = [...results].sort((a, b) => b.rating - a.rating);
+      break;
+  }
+
+  return results;
+}, [spots, searchQuery, activeFilter, selectedBuilding, userLocation]);
+  const sidebarSpots = useMemo(() => {
+    if (!selectedBathroomId) {
+      return filteredSpots;
     }
 
-    return results;
-  }, [spots, searchQuery, activeFilter, userLocation]);
+    const selectedSpot = filteredSpots.find(
+      (spot) => spot.id === selectedBathroomId
+    );
 
-  useEffect(() => {
-    if (
-      selectedBathroomId &&
-      !filteredSpots.some((spot) => spot.id === selectedBathroomId)
-    ) {
-      setSelectedBathroomId(null);
-      setActivePanel("map");
-    }
+    return selectedSpot ? [selectedSpot] : filteredSpots;
   }, [filteredSpots, selectedBathroomId]);
 
-  const sidebarSpots = useMemo(() => {
-    if (activePanel === "map" && selectedBathroomId) {
-      const selectedSpot = filteredSpots.find(
-        (spot) => spot.id === selectedBathroomId,
-      );
-
-      return selectedSpot ? [selectedSpot] : filteredSpots;
-    }
-
-    return filteredSpots;
-  }, [activePanel, filteredSpots, selectedBathroomId]);
-
   const handleMarkerClick = (bathroomId: string) => {
-    setActivePanel("map");
     setSelectedBathroomId((current) =>
-      current === bathroomId ? null : bathroomId,
+      current === bathroomId ? null : bathroomId
     );
   };
 
@@ -313,14 +324,15 @@ export default function Dashboard() {
           </div>
 
           <div className="mt-7 flex items-start justify-between gap-4">
-            <div>
+            <div className="min-w-0">
               <h2 className="font-rubik text-2xl font-semibold text-amber-900">
                 Poop Spots
               </h2>
               <p className="font-rubik text-sm text-gray-500">
-                {filteredSpots.length} result
-                {filteredSpots.length === 1 ? "" : "s"} •{" "}
+                {sidebarSpots.length} result
+                {sidebarSpots.length === 1 ? "" : "s"} •{" "}
                 {getFilterLabel(activeFilter)}
+                {selectedBuilding !== "all" ? ` • ${selectedBuilding}` : ""}
               </p>
               <button
                 type="button"
@@ -340,13 +352,35 @@ export default function Dashboard() {
             />
           </div>
 
-          {activePanel === "map" && selectedBathroomId ? (
+          <div className="mt-4">
+            <label
+              htmlFor="building-filter"
+              className="mb-2 block font-rubik text-sm font-medium text-amber-900"
+            >
+              Building
+            </label>
+            <select
+              id="building-filter"
+              value={selectedBuilding}
+              onChange={(event) => {
+                setSelectedBuilding(event.target.value);
+                setSelectedBathroomId(null);
+              }}
+              className="h-11 w-full rounded-xl border border-amber-900/30 bg-white px-4 font-rubik text-sm text-amber-900 outline-none transition focus:ring-2 focus:ring-amber-900"
+            >
+              <option value="all">All Buildings</option>
+              {buildingOptions.map((building) => (
+                <option key={building} value={building}>
+                  {building}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selectedBathroomId ? (
             <button
               type="button"
-              onClick={() => {
-                setSelectedBathroomId(null);
-                setActivePanel("map");
-              }}
+              onClick={() => setSelectedBathroomId(null)}
               className="mt-4 rounded-xl border border-amber-900/30 bg-amber-50 px-4 py-2 font-rubik text-sm text-amber-900 transition hover:bg-amber-100"
             >
               Show all spots again
@@ -369,17 +403,11 @@ export default function Dashboard() {
             {sidebarSpots.map((spot) => (
               <div
                 key={spot.id}
+                onClickCapture={() => setSelectedBathroomId(spot.id)}
                 onMouseEnter={() => setHoveredBathroomId(spot.id)}
                 onMouseLeave={() => setHoveredBathroomId(null)}
               >
-                <SpotCard
-                  spot={spot}
-                  onClick={() => {
-                    setSelectedBathroomId(spot.id);
-                    setActivePanel("detail");
-                  }}
-                  isSelected={spot.id === selectedBathroomId}
-                />
+                <SpotCard spot={spot} />
               </div>
             ))}
 
@@ -391,24 +419,17 @@ export default function Dashboard() {
           </div>
         </aside>
 
-        <section className="relative min-h-[500px] lg:h-full lg:min-h-0">
-          {activePanel === "detail" && selectedBathroomId ? (
-            <BathroomDetailPanel
-              bathroomId={selectedBathroomId}
-              onBackToMap={() => setActivePanel("map")}
-            />
-          ) : (
-            <div className="absolute inset-0">
-              {!errorMessage ? (
-                <BathroomMap
-                  bathrooms={filteredSpots}
-                  selectedBathroomId={selectedBathroomId}
-                  hoveredBathroomId={hoveredBathroomId}
-                  onMarkerClick={handleMarkerClick}
-                />
-              ) : null}
+        <section className="min-h-[500px] lg:h-full lg:min-h-0 overflow-hidden">
+          {!errorMessage ? (
+            <div className="h-full w-full">
+              <BathroomMap
+                bathrooms={filteredSpots}
+                selectedBathroomId={selectedBathroomId}
+                hoveredBathroomId={hoveredBathroomId}
+                onMarkerClick={handleMarkerClick}
+              />
             </div>
-          )}
+          ) : null}
         </section>
       </div>
     </main>
