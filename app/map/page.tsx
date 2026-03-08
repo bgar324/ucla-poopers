@@ -1,28 +1,198 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
+import { Search } from "lucide-react";
 import Navbar from "../components/Navbar";
-import ToiletBG from "../components/ToiletBG";
+import FilterDropdown, {
+  type DashboardFilter,
+} from "../components/FilterDropdown";
+import SpotCard from "../components/SpotCard";
 
-const BathroomMap = dynamic(() => import("../components/BathroomMap"), {
-  ssr: false,
-});
+interface Bathroom {
+  id: string;
+  name: string;
+  detail: string;
+  building: string;
+  floor: number;
+  latitude: number;
+  longitude: number;
+  type: string;
+  typeLabel: string;
+  isOpen: boolean;
+  rating: number;
+  reviewCount: number;
+}
+
+interface BathroomMapProps {
+  bathrooms: Bathroom[];
+  selectedBathroomId: string | null;
+  hoveredBathroomId: string | null;
+  onMarkerClick: (bathroomId: string) => void;
+}
+
+const BathroomMap = dynamic(
+  () => import("../components/BathroomMap").then((mod) => mod.default),
+  { ssr: false }
+);
+
+function matchesSearch(bathroom: Bathroom, query: string) {
+  if (!query) {
+    return true;
+  }
+
+  const haystack = [
+    bathroom.name,
+    bathroom.detail,
+    bathroom.building,
+    bathroom.typeLabel,
+    bathroom.isOpen ? "open" : "closed",
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(query);
+}
+
+function getFilterLabel(filter: DashboardFilter) {
+  switch (filter) {
+    case "near-me":
+      return "Near Me";
+    case "top-rated":
+      return "Top Rated";
+    case "worst-rated":
+      return "Worst Rated";
+    case "gender-neutral":
+      return "Gender Neutral";
+    case "accessible":
+      return "Accessible";
+    default:
+      return "All Spots";
+  }
+}
 
 export default function MapPage() {
+  const [bathrooms, setBathrooms] = useState<Bathroom[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<DashboardFilter>("all");
+  const [selectedBathroomId, setSelectedBathroomId] = useState<string | null>(
+    null
+  );
+  const [hoveredBathroomId, setHoveredBathroomId] = useState<string | null>(
+    null
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    const loadBathrooms = async () => {
+      try {
+        const response = await fetch("/api/bathrooms");
+        const data = (await response.json().catch(() => null)) as
+          | { bathrooms?: Bathroom[]; error?: string }
+          | null;
+
+        if (!active) {
+          return;
+        }
+
+        if (!response.ok || !data?.bathrooms) {
+          throw new Error(data?.error ?? "Failed to load bathrooms.");
+        }
+
+        setBathrooms(data.bathrooms);
+      } catch (error) {
+        if (!active) {
+          return;
+        }
+
+        setErrorMessage(
+          error instanceof Error ? error.message : "Failed to load bathrooms."
+        );
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadBathrooms();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const filteredBathrooms = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    let results = bathrooms.filter((bathroom) =>
+      matchesSearch(bathroom, query)
+    );
+
+    switch (activeFilter) {
+      case "top-rated":
+        results = [...results].sort((a, b) => b.rating - a.rating);
+        break;
+      case "worst-rated":
+        results = [...results].sort((a, b) => a.rating - b.rating);
+        break;
+      case "gender-neutral":
+        results = results.filter(
+          (bathroom) => bathroom.type === "gender-neutral"
+        );
+        break;
+      case "accessible":
+        results = results.filter((bathroom) => bathroom.type === "accessible");
+        break;
+      case "near-me":
+        break;
+      default:
+        break;
+    }
+
+    return results;
+  }, [bathrooms, searchQuery, activeFilter]);
+
+  const sidebarBathrooms = useMemo(() => {
+    if (!selectedBathroomId) {
+      return filteredBathrooms;
+    }
+
+    const selectedBathroom = filteredBathrooms.find(
+      (bathroom) => bathroom.id === selectedBathroomId
+    );
+
+    return selectedBathroom ? [selectedBathroom] : filteredBathrooms;
+  }, [filteredBathrooms, selectedBathroomId]);
+
+  const handleMarkerClick = (bathroomId: string) => {
+    setSelectedBathroomId((current) =>
+      current === bathroomId ? null : bathroomId
+    );
+  };
+
   return (
     <main className="min-h-screen bg-amber-50">
       <Navbar />
-      <ToiletBG />
 
-      <div className="relative z-10 grid min-h-[calc(100vh-5rem)] grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)]">
-        {/* Left Sidebar */}
+      <div className="grid min-h-[calc(100vh-5rem)] grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)]">
         <aside className="border-b border-amber-900/20 bg-white/90 p-6 backdrop-blur-sm lg:border-r lg:border-b-0 lg:p-8">
           <div className="relative">
+            <Search
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-amber-900/80"
+              size={18}
+            />
             <input
               type="text"
+              value={searchQuery}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
+                setSelectedBathroomId(null);
+              }}
               placeholder="Search poop spots..."
-              className="h-12 w-full rounded-full border border-amber-900/40 bg-white px-4 font-rubik text-amber-900 placeholder:text-amber-900/60 focus:outline-none focus:ring-2 focus:ring-amber-900"
+              className="h-12 w-full rounded-full border border-amber-900/60 bg-white pl-11 pr-5 text-amber-900 placeholder:text-amber-900/60 transition focus:outline-none focus:ring-2 focus:ring-amber-900"
             />
           </div>
 
@@ -32,40 +202,76 @@ export default function MapPage() {
                 Poop Spots
               </h2>
               <p className="font-rubik text-sm text-gray-500">
-                Explore bathrooms across UCLA
+                {sidebarBathrooms.length} result
+                {sidebarBathrooms.length === 1 ? "" : "s"} •{" "}
+                {getFilterLabel(activeFilter)}
               </p>
-
-              <Link
-                href="/add-review"
-                className="mt-4 inline-flex rounded-full bg-amber-900 px-4 py-2 font-rubik font-semibold text-white transition hover:bg-amber-800"
-              >
-                Add Review
-              </Link>
             </div>
+
+            <FilterDropdown
+              value={activeFilter}
+              onChange={(value) => {
+                setActiveFilter(value);
+                setSelectedBathroomId(null);
+              }}
+            />
           </div>
 
-          <div className="mt-6 rounded-2xl border border-amber-900/15 bg-rose-50/80 p-4">
-            <h3 className="font-rubik text-base font-semibold text-amber-900">
-              Map View
-            </h3>
-            <p className="mt-2 font-rubik text-sm text-gray-600">
-              Click a bathroom marker to view its card. Your current location
-              will appear on the map if location access is enabled.
-            </p>
-
-            <Link
-              href="/dashboard"
-              className="mt-4 inline-flex rounded-xl bg-white px-4 py-2 font-rubik text-amber-900 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          {selectedBathroomId ? (
+            <button
+              type="button"
+              onClick={() => setSelectedBathroomId(null)}
+              className="mt-4 rounded-xl border border-amber-900/30 bg-amber-50 px-4 py-2 font-rubik text-sm text-amber-900 transition hover:bg-amber-100"
             >
-              Back to Dashboard
-            </Link>
-          </div>
+              Show all spots again
+            </button>
+          ) : null}
+
+          {errorMessage ? (
+            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 font-rubik text-sm text-red-700">
+              {errorMessage}
+            </p>
+          ) : null}
+
+          {isLoading ? (
+            <p className="mt-4 font-rubik text-sm text-amber-900">Loading map...</p>
+          ) : (
+            <div className="mt-5 space-y-3 overflow-y-auto pb-6">
+              {sidebarBathrooms.map((bathroom) => (
+                <div
+                  key={bathroom.id}
+                  onClickCapture={() => setSelectedBathroomId(bathroom.id)}
+                  onMouseEnter={() => setHoveredBathroomId(bathroom.id)}
+                  onMouseLeave={() => setHoveredBathroomId(null)}
+                  className={
+                    bathroom.id === selectedBathroomId
+                      ? "rounded-xl ring-2 ring-amber-900"
+                      : ""
+                  }
+                >
+                  <SpotCard spot={bathroom} />
+                </div>
+              ))}
+
+              {sidebarBathrooms.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-amber-900/50 bg-amber-50 p-4 font-rubik text-sm text-gray-600">
+                  No spots match your search and filter yet.
+                </p>
+              ) : null}
+            </div>
+          )}
         </aside>
 
-        {/* Right Map Panel */}
-        <section className="relative min-h-[500px] bg-amber-50/40">
+        <section className="relative min-h-[500px]">
           <div className="absolute inset-0">
-            <BathroomMap />
+            {!isLoading && !errorMessage ? (
+              <BathroomMap
+                bathrooms={filteredBathrooms}
+                selectedBathroomId={selectedBathroomId}
+                hoveredBathroomId={hoveredBathroomId}
+                onMarkerClick={handleMarkerClick}
+              />
+            ) : null}
           </div>
         </section>
       </div>

@@ -2,6 +2,7 @@
 
 import type { Metadata } from "next";
 import { Rubik, Gasoek_One } from "next/font/google";
+import "leaflet/dist/leaflet.css";
 import "./globals.css";
 import ToiletBG from "./components/ToiletBG";
 import { motion } from "framer-motion";
