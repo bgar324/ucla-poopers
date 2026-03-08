@@ -29,16 +29,19 @@ const bathroomIcon = L.icon({
   popupAnchor: [0, -28],
 });
 
-const userIcon = L.icon({
+const currentLocationIcon = L.icon({
   iconUrl: "/assets/cur-loc.png",
-  iconSize: [28, 28],
-  iconAnchor: [14, 14],
+  iconSize: [22, 22],
+  iconAnchor: [11, 11],
+  popupAnchor: [0, -10],
 });
 
 export default function BathroomMap() {
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(
+    null
+  );
 
-  const center: [number, number] = [34.0705, -118.442]; // UCLA center
+  const center: [number, number] = [34.0705, -118.442];
 
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -58,17 +61,16 @@ export default function BathroomMap() {
 
   return (
     <MapContainer
-      center={center}
+      center={userLocation ?? center}
       zoom={16}
       scrollWheelZoom={true}
-      className="h-[500px] w-full rounded-xl"
+      className="h-full w-full"
     >
       <TileLayer
         attribution="&copy; OpenStreetMap contributors"
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      {/* Bathroom markers */}
       {bathrooms.map((bathroom: Bathroom) => (
         <Marker
           key={bathroom.id}
@@ -83,9 +85,8 @@ export default function BathroomMap() {
         </Marker>
       ))}
 
-      {/* User location marker */}
       {userLocation && (
-        <Marker position={userLocation} icon={userIcon}>
+        <Marker position={userLocation} icon={currentLocationIcon}>
           <Popup>You are here</Popup>
         </Marker>
       )}
