@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import FilterDropdown, {
   type DashboardFilter,
 } from "../components/FilterDropdown";
+import BathroomDetailPanel from "../components/BathroomDetailPanel";
 import SpotCard from "../components/SpotCard";
 import ToiletBG from "../components/ToiletBG";
 
@@ -95,6 +96,7 @@ export default function Dashboard() {
   const [spots, setSpots] = useState<BathroomSpot[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>("all");
+  const [activePanel, setActivePanel] = useState<"map" | "detail">("map");
   const [selectedBathroomId, setSelectedBathroomId] = useState<string | null>(
     null,
   );
@@ -243,19 +245,30 @@ export default function Dashboard() {
     return results;
   }, [spots, searchQuery, activeFilter, userLocation]);
 
-  const sidebarSpots = useMemo(() => {
-    if (!selectedBathroomId) {
-      return filteredSpots;
+  useEffect(() => {
+    if (
+      selectedBathroomId &&
+      !filteredSpots.some((spot) => spot.id === selectedBathroomId)
+    ) {
+      setSelectedBathroomId(null);
+      setActivePanel("map");
     }
-
-    const selectedSpot = filteredSpots.find(
-      (spot) => spot.id === selectedBathroomId,
-    );
-
-    return selectedSpot ? [selectedSpot] : filteredSpots;
   }, [filteredSpots, selectedBathroomId]);
 
+  const sidebarSpots = useMemo(() => {
+    if (activePanel === "map" && selectedBathroomId) {
+      const selectedSpot = filteredSpots.find(
+        (spot) => spot.id === selectedBathroomId,
+      );
+
+      return selectedSpot ? [selectedSpot] : filteredSpots;
+    }
+
+    return filteredSpots;
+  }, [activePanel, filteredSpots, selectedBathroomId]);
+
   const handleMarkerClick = (bathroomId: string) => {
+    setActivePanel("map");
     setSelectedBathroomId((current) =>
       current === bathroomId ? null : bathroomId,
     );
@@ -305,8 +318,8 @@ export default function Dashboard() {
                 Poop Spots
               </h2>
               <p className="font-rubik text-sm text-gray-500">
-                {sidebarSpots.length} result
-                {sidebarSpots.length === 1 ? "" : "s"} •{" "}
+                {filteredSpots.length} result
+                {filteredSpots.length === 1 ? "" : "s"} •{" "}
                 {getFilterLabel(activeFilter)}
               </p>
               <button
@@ -327,10 +340,13 @@ export default function Dashboard() {
             />
           </div>
 
-          {selectedBathroomId ? (
+          {activePanel === "map" && selectedBathroomId ? (
             <button
               type="button"
-              onClick={() => setSelectedBathroomId(null)}
+              onClick={() => {
+                setSelectedBathroomId(null);
+                setActivePanel("map");
+              }}
               className="mt-4 rounded-xl border border-amber-900/30 bg-amber-50 px-4 py-2 font-rubik text-sm text-amber-900 transition hover:bg-amber-100"
             >
               Show all spots again
@@ -353,11 +369,17 @@ export default function Dashboard() {
             {sidebarSpots.map((spot) => (
               <div
                 key={spot.id}
-                onClickCapture={() => setSelectedBathroomId(spot.id)}
                 onMouseEnter={() => setHoveredBathroomId(spot.id)}
                 onMouseLeave={() => setHoveredBathroomId(null)}
               >
-                <SpotCard spot={spot} />
+                <SpotCard
+                  spot={spot}
+                  onClick={() => {
+                    setSelectedBathroomId(spot.id);
+                    setActivePanel("detail");
+                  }}
+                  isSelected={spot.id === selectedBathroomId}
+                />
               </div>
             ))}
 
@@ -370,16 +392,23 @@ export default function Dashboard() {
         </aside>
 
         <section className="relative min-h-[500px] lg:h-full lg:min-h-0">
-          <div className="absolute inset-0">
-            {!errorMessage ? (
-              <BathroomMap
-                bathrooms={filteredSpots}
-                selectedBathroomId={selectedBathroomId}
-                hoveredBathroomId={hoveredBathroomId}
-                onMarkerClick={handleMarkerClick}
-              />
-            ) : null}
-          </div>
+          {activePanel === "detail" && selectedBathroomId ? (
+            <BathroomDetailPanel
+              bathroomId={selectedBathroomId}
+              onBackToMap={() => setActivePanel("map")}
+            />
+          ) : (
+            <div className="absolute inset-0">
+              {!errorMessage ? (
+                <BathroomMap
+                  bathrooms={filteredSpots}
+                  selectedBathroomId={selectedBathroomId}
+                  hoveredBathroomId={hoveredBathroomId}
+                  onMarkerClick={handleMarkerClick}
+                />
+              ) : null}
+            </div>
+          )}
         </section>
       </div>
     </main>
