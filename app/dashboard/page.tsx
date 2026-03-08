@@ -96,6 +96,7 @@ export default function Dashboard() {
   const [spots, setSpots] = useState<BathroomSpot[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>("all");
+  const [activePanel, setActivePanel] = useState<"map" | "detail">("map");
   const [selectedBathroomId, setSelectedBathroomId] = useState<string | null>(
     null,
   );
@@ -250,10 +251,24 @@ export default function Dashboard() {
       !filteredSpots.some((spot) => spot.id === selectedBathroomId)
     ) {
       setSelectedBathroomId(null);
+      setActivePanel("map");
     }
   }, [filteredSpots, selectedBathroomId]);
 
+  const sidebarSpots = useMemo(() => {
+    if (activePanel === "map" && selectedBathroomId) {
+      const selectedSpot = filteredSpots.find(
+        (spot) => spot.id === selectedBathroomId,
+      );
+
+      return selectedSpot ? [selectedSpot] : filteredSpots;
+    }
+
+    return filteredSpots;
+  }, [activePanel, filteredSpots, selectedBathroomId]);
+
   const handleMarkerClick = (bathroomId: string) => {
+    setActivePanel("map");
     setSelectedBathroomId((current) =>
       current === bathroomId ? null : bathroomId,
     );
@@ -325,13 +340,16 @@ export default function Dashboard() {
             />
           </div>
 
-          {selectedBathroomId ? (
+          {activePanel === "map" && selectedBathroomId ? (
             <button
               type="button"
-              onClick={() => setSelectedBathroomId(null)}
+              onClick={() => {
+                setSelectedBathroomId(null);
+                setActivePanel("map");
+              }}
               className="mt-4 rounded-xl border border-amber-900/30 bg-amber-50 px-4 py-2 font-rubik text-sm text-amber-900 transition hover:bg-amber-100"
             >
-              Show map again
+              Show all spots again
             </button>
           ) : null}
 
@@ -348,7 +366,7 @@ export default function Dashboard() {
           ) : null}
 
           <div className="mt-5 space-y-3 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pb-6 lg:pr-2">
-            {filteredSpots.map((spot) => (
+            {sidebarSpots.map((spot) => (
               <div
                 key={spot.id}
                 onMouseEnter={() => setHoveredBathroomId(spot.id)}
@@ -356,17 +374,16 @@ export default function Dashboard() {
               >
                 <SpotCard
                   spot={spot}
-                  onClick={() =>
-                    setSelectedBathroomId((current) =>
-                      current === spot.id ? null : spot.id,
-                    )
-                  }
+                  onClick={() => {
+                    setSelectedBathroomId(spot.id);
+                    setActivePanel("detail");
+                  }}
                   isSelected={spot.id === selectedBathroomId}
                 />
               </div>
             ))}
 
-            {filteredSpots.length === 0 ? (
+            {sidebarSpots.length === 0 ? (
               <p className="rounded-xl border border-dashed border-amber-900/50 bg-amber-50 p-4 font-rubik text-sm text-gray-600">
                 No spots match your search and filter yet.
               </p>
@@ -375,8 +392,11 @@ export default function Dashboard() {
         </aside>
 
         <section className="relative min-h-[500px] lg:h-full lg:min-h-0">
-          {selectedBathroomId ? (
-            <BathroomDetailPanel bathroomId={selectedBathroomId} />
+          {activePanel === "detail" && selectedBathroomId ? (
+            <BathroomDetailPanel
+              bathroomId={selectedBathroomId}
+              onBackToMap={() => setActivePanel("map")}
+            />
           ) : (
             <div className="absolute inset-0">
               {!errorMessage ? (
