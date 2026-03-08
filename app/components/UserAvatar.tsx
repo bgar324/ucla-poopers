@@ -6,6 +6,7 @@ export default function Avatar({size = 96, src,}: {
     return (
       <img
         src={src}
+        alt="Profile avatar"
         style={{ width: size, height: size }}
         className="rounded-full object-cover"
       />

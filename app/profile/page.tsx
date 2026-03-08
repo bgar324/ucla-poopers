@@ -2,9 +2,11 @@
 
 import supabase from "@/supabaseClient";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import ToiletBG from "../components/ToiletBG";
 import Navbar from "../components/Navbar";
+import Avatar from "../components/UserAvatar";
+import AvatarCropModal from "../components/AvatarCropModal";
 
 interface ProfileRecord {
   id: string;
@@ -12,6 +14,7 @@ interface ProfileRecord {
   username: string;
   firstName: string;
   lastName: string;
+  avatarUrl: string | null;
   twoFactorEnabled: boolean;
 }
 
@@ -22,15 +25,61 @@ interface EnrollmentState {
   uri: string;
 }
 
+const AVATAR_BUCKET = "avatars";
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+const ALLOWED_AVATAR_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
+function buildAvatarPath(userId: string, file: File) {
+  const rawExtension = file.name.split(".").pop()?.toLowerCase();
+  const extension =
+    rawExtension && /^[a-z0-9]+$/.test(rawExtension) ? rawExtension : "jpg";
+  const baseName =
+    file.name
+      .replace(/\.[^.]+$/, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40) || "avatar";
+
+  return `${userId}/${crypto.randomUUID()}-${baseName}.${extension}`;
+}
+
+function extractAvatarStoragePath(avatarUrl: string | null) {
+  if (!avatarUrl) {
+    return null;
+  }
+
+  try {
+    const url = new URL(avatarUrl);
+    const prefix = `/storage/v1/object/public/${AVATAR_BUCKET}/`;
+    const start = url.pathname.indexOf(prefix);
+
+    if (start === -1) {
+      return null;
+    }
+
+    return decodeURIComponent(url.pathname.slice(start + prefix.length));
+  } catch {
+    return null;
+  }
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const [accessToken, setAccessToken] = useState("");
+  const [sessionUserId, setSessionUserId] = useState("");
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -75,6 +124,7 @@ export default function ProfilePage() {
       }
 
       setAccessToken(session.access_token);
+      setSessionUserId(session.user.id);
 
       const response = await fetch("/api/profile", {
         headers: {
@@ -140,6 +190,117 @@ export default function ProfilePage() {
 
     setProfile(responseData.user);
     return responseData.user;
+  };
+
+  const uploadAvatarFile = async (file: File) => {
+    if (!sessionUserId) {
+      throw new Error("No valid auth session.");
+    }
+
+    const previousAvatarUrl = profile?.avatarUrl ?? null;
+    const nextAvatarPath = buildAvatarPath(sessionUserId, file);
+
+    setStatusMessage("");
+    setErrorMessage("");
+    setIsUploadingAvatar(true);
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from(AVATAR_BUCKET)
+        .upload(nextAvatarPath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) {
+        throw new Error(uploadError.message);
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(nextAvatarPath);
+
+      await updateProfile({ avatarUrl: publicUrl });
+      setStatusMessage("Profile photo updated.");
+
+      const previousAvatarPath = extractAvatarStoragePath(previousAvatarUrl);
+      if (previousAvatarPath && previousAvatarPath !== nextAvatarPath) {
+        void supabase.storage.from(AVATAR_BUCKET).remove([previousAvatarPath]);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Profile photo upload failed.";
+
+      void supabase.storage.from(AVATAR_BUCKET).remove([nextAvatarPath]);
+      setErrorMessage(message);
+      throw error;
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    if (!sessionUserId) {
+      setErrorMessage("No valid auth session.");
+      return;
+    }
+
+    if (!ALLOWED_AVATAR_TYPES.has(file.type)) {
+      setErrorMessage("Please upload a PNG, JPG, or WEBP image.");
+      return;
+    }
+
+    if (file.size > MAX_AVATAR_BYTES) {
+      setErrorMessage("Profile photos must be 5MB or smaller.");
+      return;
+    }
+
+    setStatusMessage("");
+    setErrorMessage("");
+    setPendingAvatarFile(file);
+  };
+
+  const handleConfirmAvatarCrop = async (croppedFile: File) => {
+    await uploadAvatarFile(croppedFile);
+    setPendingAvatarFile(null);
+  };
+
+  const handleRemoveAvatar = async () => {
+    const currentAvatarUrl = profile?.avatarUrl ?? null;
+    if (!currentAvatarUrl) {
+      return;
+    }
+
+    setStatusMessage("");
+    setErrorMessage("");
+    setIsUploadingAvatar(true);
+
+    try {
+      await updateProfile({ avatarUrl: null });
+      setStatusMessage("Profile photo removed.");
+
+      const currentAvatarPath = extractAvatarStoragePath(currentAvatarUrl);
+      if (currentAvatarPath) {
+        void supabase.storage.from(AVATAR_BUCKET).remove([currentAvatarPath]);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Profile photo removal failed.";
+      setErrorMessage(message);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
   };
 
   const handleSaveProfile = async (event: FormEvent<HTMLFormElement>) => {
@@ -275,6 +436,19 @@ export default function ProfilePage() {
 
   return (
     <>
+      {pendingAvatarFile ? (
+        <AvatarCropModal
+          file={pendingAvatarFile}
+          isSubmitting={isUploadingAvatar}
+          onCancel={() => {
+            if (!isUploadingAvatar) {
+              setPendingAvatarFile(null);
+            }
+          }}
+          onConfirm={handleConfirmAvatarCrop}
+        />
+      ) : null}
+
       <Navbar />
       <main className="min-h-screen bg-amber-50 px-4 py-10">
         <ToiletBG />
@@ -289,6 +463,54 @@ export default function ProfilePage() {
               >
                 Dashboard
               </button>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-4 rounded-xl border border-amber-900/10 bg-white/70 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <Avatar size={96} src={profile?.avatarUrl ?? undefined} />
+                <div>
+                  <p className="font-rubik text-lg text-amber-900">
+                    Profile Photo
+                  </p>
+                  <p className="font-rubik text-sm text-gray-600">
+                    PNG, JPG, or WEBP up to 5MB.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <label
+                  className={`font-rubik rounded-xl bg-amber-900 px-5 py-2 text-white shadow-md transition ${
+                    isUploadingAvatar
+                      ? "cursor-not-allowed opacity-70"
+                      : "cursor-pointer hover:bg-amber-800"
+                  }`}
+                >
+                  {isUploadingAvatar
+                    ? "Uploading..."
+                    : profile?.avatarUrl
+                      ? "Change Photo"
+                      : "Upload Photo"}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={handleAvatarChange}
+                    disabled={isUploadingAvatar}
+                  />
+                </label>
+
+                {profile?.avatarUrl ? (
+                  <button
+                    type="button"
+                    onClick={handleRemoveAvatar}
+                    disabled={isUploadingAvatar}
+                    className="font-rubik cursor-pointer rounded-xl border border-amber-900 px-5 py-2 text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    Remove Photo
+                  </button>
+                ) : null}
+              </div>
             </div>
 
             <form onSubmit={handleSaveProfile} className="mt-6 space-y-4">
