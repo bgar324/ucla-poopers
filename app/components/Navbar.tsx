@@ -8,7 +8,6 @@ export default function Navbar() {
 
   const navItems = [
     { name: "Dashboard", href: "/dashboard" },
-    { name: "Map", href: "/map" },
     { name: "Poopers", href: "/poopers" },
     { name: "My Profile", href: "/profile" },
   ]

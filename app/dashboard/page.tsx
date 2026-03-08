@@ -1,15 +1,21 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Navbar from "@/app/components/Navbar";
 import supabase from "@/supabaseClient";
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import FilterDropdown, {
   type DashboardFilter,
 } from "../components/FilterDropdown";
 import SpotCard from "../components/SpotCard";
 import ToiletBG from "../components/ToiletBG";
+
+const BathroomMap = dynamic(
+  () => import("../components/BathroomMap").then((mod) => mod.default),
+  { ssr: false },
+);
 
 interface BathroomSpot {
   id: string;
@@ -25,13 +31,6 @@ interface BathroomSpot {
   rating: number;
   reviewCount: number;
 }
-
-interface AddReviewModalProps {
-  userId: string;
-  onClose: () => void;
-  onSuccess: () => void;
-}
-
 
 function toRadians(value: number) {
   return (value * Math.PI) / 180;
@@ -96,22 +95,18 @@ export default function Dashboard() {
   const [spots, setSpots] = useState<BathroomSpot[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>("all");
+  const [selectedBathroomId, setSelectedBathroomId] = useState<string | null>(
+    null,
+  );
+  const [hoveredBathroomId, setHoveredBathroomId] = useState<string | null>(
+    null,
+  );
   const [errorMessage, setErrorMessage] = useState("");
   const [locationError, setLocationError] = useState("");
-  const [showAddBathroom, setShowAddBathroom] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.id) setUserId(session.user.id);
-    };
-    void fetchUser();
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -215,45 +210,56 @@ export default function Dashboard() {
     };
   }, [activeFilter, userLocation]);
 
-  const query = searchQuery.trim().toLowerCase();
-  let filteredSpots = spots.filter((spot) => matchesSearch(spot, query));
+  const filteredSpots = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    let results = spots.filter((spot) => matchesSearch(spot, query));
 
-  switch (activeFilter) {
-    case "top-rated":
-      filteredSpots = [...filteredSpots].sort((a, b) => b.rating - a.rating);
-      break;
-    case "worst-rated":
-      filteredSpots = [...filteredSpots].sort((a, b) => a.rating - b.rating);
-      break;
-    case "gender-neutral":
-      filteredSpots = filteredSpots.filter(
-        (spot) => spot.type === "gender-neutral",
-      );
-      break;
-    case "accessible":
-      filteredSpots = filteredSpots.filter((spot) => spot.type === "accessible");
-      break;
-    case "near-me":
-      if (userLocation) {
-        filteredSpots = [...filteredSpots].sort(
-          (a, b) =>
-            getDistanceInMiles(userLocation, a) -
-            getDistanceInMiles(userLocation, b),
-        );
-      }
-      break;
-    default:
-      break;
-  }
+    switch (activeFilter) {
+      case "top-rated":
+        results = [...results].sort((a, b) => b.rating - a.rating);
+        break;
+      case "worst-rated":
+        results = [...results].sort((a, b) => a.rating - b.rating);
+        break;
+      case "gender-neutral":
+        results = results.filter((spot) => spot.type === "gender-neutral");
+        break;
+      case "accessible":
+        results = results.filter((spot) => spot.type === "accessible");
+        break;
+      case "near-me":
+        if (userLocation) {
+          results = [...results].sort(
+            (a, b) =>
+              getDistanceInMiles(userLocation, a) -
+              getDistanceInMiles(userLocation, b),
+          );
+        }
+        break;
+      default:
+        break;
+    }
 
-  const openSpotCount = spots.filter((spot) => spot.isOpen).length;
-  const averageRating =
-    spots.length === 0
-      ? 0
-      : Math.round(
-          (spots.reduce((sum, spot) => sum + spot.rating, 0) / spots.length) *
-            10,
-        ) / 10;
+    return results;
+  }, [spots, searchQuery, activeFilter, userLocation]);
+
+  const sidebarSpots = useMemo(() => {
+    if (!selectedBathroomId) {
+      return filteredSpots;
+    }
+
+    const selectedSpot = filteredSpots.find(
+      (spot) => spot.id === selectedBathroomId,
+    );
+
+    return selectedSpot ? [selectedSpot] : filteredSpots;
+  }, [filteredSpots, selectedBathroomId]);
+
+  const handleMarkerClick = (bathroomId: string) => {
+    setSelectedBathroomId((current) =>
+      current === bathroomId ? null : bathroomId,
+    );
+  };
 
   if (isLoading) {
     return (
@@ -274,8 +280,8 @@ export default function Dashboard() {
       <Navbar />
       <ToiletBG />
 
-      <div className="relative z-10 grid min-h-[calc(100vh-5rem)] grid-cols-1 lg:grid-cols-3">
-        <aside className="border-b border-amber-900/20 bg-white/90 p-6 backdrop-blur-sm lg:border-r lg:border-b-0 lg:p-8">
+      <div className="relative z-10 grid min-h-[calc(100vh-5rem)] grid-cols-1 lg:h-[calc(100vh-5rem)] lg:grid-cols-[360px_minmax(0,1fr)] lg:overflow-hidden">
+        <aside className="border-b border-amber-900/20 bg-white/90 p-6 backdrop-blur-sm lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden lg:border-r lg:border-b-0 lg:p-8">
           <div className="relative">
             <Search
               className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-amber-900/80"
@@ -284,7 +290,10 @@ export default function Dashboard() {
             <input
               type="text"
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              onChange={(event) => {
+                setSearchQuery(event.target.value);
+                setSelectedBathroomId(null);
+              }}
               placeholder="Search poop spots..."
               className="h-12 w-full rounded-full border border-amber-900/60 bg-white pl-11 pr-5 text-amber-900 placeholder:text-amber-900/60 transition focus:outline-none focus:ring-2 focus:ring-amber-900"
             />
@@ -296,11 +305,12 @@ export default function Dashboard() {
                 Poop Spots
               </h2>
               <p className="font-rubik text-sm text-gray-500">
-                {filteredSpots.length} result
-                {filteredSpots.length === 1 ? "" : "s"} • {getFilterLabel(activeFilter)}
+                {sidebarSpots.length} result
+                {sidebarSpots.length === 1 ? "" : "s"} •{" "}
+                {getFilterLabel(activeFilter)}
               </p>
-              {/*add-bathroom*/}
               <button
+                type="button"
                 onClick={() => router.push("/add-review")}
                 className="mt-4 w-full rounded-full bg-amber-900 px-4 py-2 font-semibold text-white hover:bg-amber-800"
               >
@@ -308,8 +318,24 @@ export default function Dashboard() {
               </button>
             </div>
 
-            <FilterDropdown value={activeFilter} onChange={setActiveFilter} />
+            <FilterDropdown
+              value={activeFilter}
+              onChange={(value) => {
+                setActiveFilter(value);
+                setSelectedBathroomId(null);
+              }}
+            />
           </div>
+
+          {selectedBathroomId ? (
+            <button
+              type="button"
+              onClick={() => setSelectedBathroomId(null)}
+              className="mt-4 rounded-xl border border-amber-900/30 bg-amber-50 px-4 py-2 font-rubik text-sm text-amber-900 transition hover:bg-amber-100"
+            >
+              Show all spots again
+            </button>
+          ) : null}
 
           {errorMessage ? (
             <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 font-rubik text-sm text-red-700">
@@ -323,18 +349,38 @@ export default function Dashboard() {
             </p>
           ) : null}
 
-          <div className="mt-5 space-y-3">
-            {filteredSpots.map((spot) => (
-              <SpotCard key={spot.id} spot={spot} />
+          <div className="mt-5 space-y-3 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pb-6 lg:pr-2">
+            {sidebarSpots.map((spot) => (
+              <div
+                key={spot.id}
+                onClickCapture={() => setSelectedBathroomId(spot.id)}
+                onMouseEnter={() => setHoveredBathroomId(spot.id)}
+                onMouseLeave={() => setHoveredBathroomId(null)}
+              >
+                <SpotCard spot={spot} />
+              </div>
             ))}
 
-            {filteredSpots.length === 0 ? (
+            {sidebarSpots.length === 0 ? (
               <p className="rounded-xl border border-dashed border-amber-900/50 bg-amber-50 p-4 font-rubik text-sm text-gray-600">
                 No spots match your search and filter yet.
               </p>
             ) : null}
           </div>
         </aside>
+
+        <section className="relative min-h-[500px] lg:h-full lg:min-h-0">
+          <div className="absolute inset-0">
+            {!errorMessage ? (
+              <BathroomMap
+                bathrooms={filteredSpots}
+                selectedBathroomId={selectedBathroomId}
+                hoveredBathroomId={hoveredBathroomId}
+                onMarkerClick={handleMarkerClick}
+              />
+            ) : null}
+          </div>
+        </section>
       </div>
     </main>
   );
