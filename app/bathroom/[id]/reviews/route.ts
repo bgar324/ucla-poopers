@@ -3,12 +3,14 @@ import prisma from "@/lib/prisma";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+
     const reviews = await prisma.review.findMany({
       where: {
-        bathroom_id: params.id,
+        bathroom_id: id,
       },
       include: {
         user: {

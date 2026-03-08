@@ -177,8 +177,8 @@ export default function MapPage() {
     <main className="min-h-screen bg-amber-50">
       <Navbar />
 
-      <div className="grid min-h-[calc(100vh-5rem)] grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <aside className="border-b border-amber-900/20 bg-white/90 p-6 backdrop-blur-sm lg:border-r lg:border-b-0 lg:p-8">
+      <div className="grid min-h-[calc(100vh-5rem)] grid-cols-1 lg:h-[calc(100vh-5rem)] lg:grid-cols-[360px_minmax(0,1fr)] lg:overflow-hidden">
+        <aside className="border-b border-amber-900/20 bg-white/90 p-6 backdrop-blur-sm lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden lg:border-r lg:border-b-0 lg:p-8">
           <div className="relative">
             <Search
               className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-amber-900/80"
@@ -236,18 +236,13 @@ export default function MapPage() {
           {isLoading ? (
             <p className="mt-4 font-rubik text-sm text-amber-900">Loading map...</p>
           ) : (
-            <div className="mt-5 space-y-3 overflow-y-auto pb-6">
+            <div className="mt-5 space-y-3 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pb-6 lg:pr-2">
               {sidebarBathrooms.map((bathroom) => (
                 <div
                   key={bathroom.id}
                   onClickCapture={() => setSelectedBathroomId(bathroom.id)}
                   onMouseEnter={() => setHoveredBathroomId(bathroom.id)}
                   onMouseLeave={() => setHoveredBathroomId(null)}
-                  className={
-                    bathroom.id === selectedBathroomId
-                      ? "rounded-xl ring-2 ring-amber-900"
-                      : ""
-                  }
                 >
                   <SpotCard spot={bathroom} />
                 </div>
@@ -262,7 +257,7 @@ export default function MapPage() {
           )}
         </aside>
 
-        <section className="relative min-h-[500px]">
+        <section className="relative min-h-[500px] lg:h-full lg:min-h-0">
           <div className="absolute inset-0">
             {!isLoading && !errorMessage ? (
               <BathroomMap
