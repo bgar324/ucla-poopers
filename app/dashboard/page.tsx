@@ -312,7 +312,7 @@ export default function Dashboard() {
       <Navbar />
       <ToiletBG />
 
-      <div className="relative z-10 grid min-h-[calc(100vh-5rem)] grid-cols-1 lg:h-[calc(100vh-5rem)] lg:grid-cols-[360px_minmax(0,1fr)] lg:overflow-hidden">
+      <div className="relative z-10 grid min-h-[calc(100vh-5rem)] grid-cols-1 lg:h-[calc(100vh-5rem)] lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:overflow-hidden">
         <aside className="border-b border-amber-900/20 bg-white/90 p-6 backdrop-blur-sm lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden lg:border-r lg:border-b-0 lg:p-8">
           <div className="relative">
             <Search
