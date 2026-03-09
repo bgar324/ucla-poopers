@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Rating from "./Rating";
 import UserAvatar from "./UserAvatar";
+import { CirclePlus, Plus } from "lucide-react";
 
 interface BathroomReview {
   id: string;
@@ -75,6 +76,9 @@ export default function BathroomDetailPanel({
   const statusShellClassName = isEmbedded
     ? "relative z-10 flex h-full items-center justify-center px-6"
     : "flex h-full items-center justify-center bg-amber-50 px-6";
+  const [isWritingReview, setIsWritingReview] = useState(false);
+  const [reviewDescription, setReviewDescription] = useState("");
+  const textareaRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -137,12 +141,12 @@ export default function BathroomDetailPanel({
           {backLabel}
         </button>
 
-        <Link
+        {/* <Link
           href={`/add-review?bathroomId=${bathroom.id}`}
           className="rounded-full bg-amber-900 px-4 py-2 font-rubik text-sm font-medium text-white transition hover:bg-amber-800"
         >
           Add review
-        </Link>
+        </Link> */}
       </div>
 
       <div className="mx-auto w-full max-w-5xl px-6 py-8 lg:px-10 lg:py-10">
@@ -192,19 +196,74 @@ export default function BathroomDetailPanel({
 
         <section className="mt-8">
           <div className="flex flex-wrap items-end justify-between gap-4 px-4">
-            <div>
-              <p className="font-rubik text-[11px] uppercase tracking-[0.24em] text-amber-900/55">
-                Community notes
-              </p>
-              <h2 className="mt-2 font-rubik text-3xl font-semibold text-amber-900">
-                Reviews
-              </h2>
-            </div>
+            <div className="flex items-center gap-3">
+            <h2 className="font-rubik text-3xl font-semibold text-amber-900">
+              Reviews
+            </h2>
+            <button 
+            onClick={() => 
+              {setIsWritingReview(!isWritingReview);
+               setTimeout(() => textareaRef.current?.focus(), 100);}}
+            className="flex items-center gap-2 p-2 rounded-full border border-amber-900/20 text-amber-900 shadow-sm transition hover:bg-rose-50 hover:cursor-pointer hover:shadow-md">
+              <Plus size={16} strokeWidth={2}/>
+            </button>
+          </div>
             <p className="font-rubik text-sm text-slate-500">
               {bathroom.reviewCount} total review
               {bathroom.reviewCount === 1 ? "" : "s"}
             </p>
           </div>
+          {isWritingReview && (
+            <div className = "mt-5 animate-in fade-in slide-in-from-top-2 duration-300"> 
+            <article className="rounded-[1.5rem] border border-amber-900/10 bg-white/80 p-6 shadow-md">
+
+              <div className="flex items-start justify-between gap-4">
+
+                <div className="flex items-start gap-3">
+                  <UserAvatar size={44} />
+
+                  <div>
+                    <p className="font-rubik text-base text-slate-600">
+                      Your username
+                    </p>
+
+                    <p className="mt-1 font-rubik text-sm text-slate-400">
+                      {formatReviewDate(new Date())}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Rating value={0} />
+                  <span className="font-rubik text-lg text-amber-900">
+                    Select rating
+                  </span>
+                </div>
+
+              </div>
+
+              <div className="mt-4 border-t border-amber-900/10 pt-4">
+
+                <textarea
+                 ref={textareaRef}
+                  value={reviewDescription}
+                  onChange={(e) => setReviewDescription(e.target.value)}
+                  placeholder="Write your review..."
+                  rows={3}
+                  className="w-full resize-none rounded-lg border border-amber-900/20 p-3 font-rubik text-lg text-slate-800 outline-none focus:border-amber-900"
+                />
+
+                <div className="mt-4 flex justify-end">
+                  <button className="rounded-full bg-amber-900 px-4 py-2 font-rubik text-white transition hover:bg-amber-800">
+                    Post Review
+                  </button>
+                </div>
+
+              </div>
+
+            </article>
+            </div>
+          )}
 
           {bathroom.reviews.length === 0 ? (
             <div className="mt-5 rounded-[1.5rem] border border-dashed border-amber-900/25 bg-white/60 p-6 font-rubik text-slate-600">
@@ -214,48 +273,48 @@ export default function BathroomDetailPanel({
             <div className="mt-5 space-y-4">
               {bathroom.reviews.map((review) => (
                 <article
-  key={review.id}
-  className="rounded-[1.5rem] border border-amber-900/10 bg-white/80 p-6 shadow-md hover:shadow-lg transition"
->
-  <div className="flex items-start justify-between gap-4">
-    
-    {/* Left side: avatar + username + date */}
-    <div className="flex items-start gap-3">
-      <UserAvatar size={44} src={review.avatarUrl ?? undefined} />
+                  key={review.id}
+                  className="rounded-[1.5rem] border border-amber-900/10 bg-white/80 p-6 shadow-md hover:shadow-lg transition"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                
+                
+                <div className="flex items-start gap-3">
+                  <UserAvatar size={44} src={review.avatarUrl ?? undefined} />
 
-      <div>
-        <p className="font-rubik text-base text-slate-600">
-          {review.username}
-        </p>
+                  <div>
+                    <p className="font-rubik text-base text-slate-600">
+                      {review.username}
+                    </p>
 
-        {formatReviewDate(review.createdAt) ? (
-          <p className="mt-1 font-rubik text-sm text-slate-400">
-            {formatReviewDate(review.createdAt)}
-          </p>
-        ) : null}
-      </div>
-    </div>
+                    {formatReviewDate(review.createdAt) ? (
+                      <p className="mt-1 font-rubik text-sm text-slate-400">
+                        {formatReviewDate(review.createdAt)}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
 
-    {/* Right side: rating */}
-    <div className="flex items-center gap-3">
-      <Rating value={review.rating} />
-      <span className="font-rubik text-lg text-amber-900">
-        {review.rating}/5 poops
-      </span>
-    </div>
+                
+                <div className="flex items-center gap-3">
+                  <Rating value={review.rating} />
+                  <span className="font-rubik text-lg text-amber-900">
+                    {review.rating}/5 poops
+                  </span>
+                </div>
 
-  </div>
+              </div>
 
-  {/* Divider */}
-  <div className="mt-4 border-t border-amber-900/10 pt-4">
+              
+              <div className="mt-4 border-t border-amber-900/10 pt-4">
 
-    {/* Review text */}
-    <p className="font-rubik text-xl text-slate-800 leading-8">
-      {review.description || "No written review."}
-    </p>
+                
+                <p className="font-rubik text-xl text-slate-800 leading-8">
+                  {review.description || "No written review."}
+                </p>
 
-  </div>
-</article>
+              </div>
+            </article>
               ))}
             </div>
           )}
