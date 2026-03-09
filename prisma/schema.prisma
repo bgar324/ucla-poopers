@@ -20,6 +20,8 @@ model User {
 
   bathrooms Bathroom[] @relation("UserBathrooms")
   reviews   Review[]
+  following Follow[]   @relation("UserFollowing")
+  followers Follow[]   @relation("UserFollowers")
 }
 
 model Bathroom {
@@ -49,4 +51,16 @@ model Review {
   user     User     @relation(fields: [user_id], references: [id])
 
   @@unique([bathroom_id, user_id])
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId])
 }
