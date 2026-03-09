@@ -564,7 +564,7 @@ export default function BathroomDetailPanel({
                     <button
                       type="button"
                       onClick={closeComposer}
-                      className="rounded-full border border-amber-900/20 bg-white px-4 py-2 font-rubik text-amber-900 transition hover:bg-amber-50"
+                      className="rounded-full border border-amber-900/20 bg-white px-4 py-2 font-rubik text-amber-900 transition hover:bg-amber-50 cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -572,7 +572,7 @@ export default function BathroomDetailPanel({
                       type="button"
                       onClick={handleSubmitReview}
                       disabled={isSubmittingReview}
-                      className="rounded-full bg-amber-900 px-4 py-2 font-rubik text-white transition hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-70"
+                      className="rounded-full bg-amber-900 px-4 py-2 font-rubik text-white transition hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-70 cursor-pointer"
                     >
                       {isSubmittingReview
                         ? editingReviewId
@@ -625,7 +625,7 @@ export default function BathroomDetailPanel({
                           <button
                             type="button"
                             onClick={() => openComposer(review)}
-                            className="rounded-full border border-amber-900/20 p-2 text-amber-900 transition hover:bg-rose-50"
+                            className="rounded-full border border-amber-900/20 p-2 text-amber-900 transition hover:bg-rose-50 hover:cursor-pointer"
                             aria-label="Edit your review"
                           >
                             <Pencil size={14} strokeWidth={2} />
@@ -634,7 +634,7 @@ export default function BathroomDetailPanel({
                             type="button"
                             onClick={() => setReviewPendingDelete(review)}
                             disabled={deletingReviewId === review.id}
-                            className="rounded-full border border-red-200 p-2 text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="rounded-full border border-red-200 p-2 text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 hover:cursor-pointer"
                             aria-label="Delete your review"
                           >
                             <Trash2 size={14} strokeWidth={2} />

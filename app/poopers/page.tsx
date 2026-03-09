@@ -483,7 +483,7 @@ export default function PoopersProfilePage() {
                               editorRequestKey: Date.now(),
                             })
                           }
-                          className="rounded-full border border-amber-900/20 bg-white/90 p-2 text-amber-900 transition hover:bg-rose-50"
+                          className="rounded-full border border-amber-900/20 bg-white/90 p-2 text-amber-900 transition hover:bg-rose-50 hover:cursor-pointer"
                           aria-label="Edit this review"
                         >
                           <Pencil size={14} strokeWidth={2} />
@@ -493,7 +493,7 @@ export default function PoopersProfilePage() {
                           type="button"
                           onClick={() => setReviewPendingDelete(review)}
                           disabled={deletingReviewId === review.id}
-                          className="rounded-full border border-red-200 bg-white/90 p-2 text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="rounded-full border border-red-200 bg-white/90 p-2 text-red-700 transition hover:bg-red-50 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                           aria-label="Delete this review"
                         >
                           <Trash2 size={14} strokeWidth={2} />
