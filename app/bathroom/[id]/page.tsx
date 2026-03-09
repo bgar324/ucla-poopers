@@ -72,7 +72,10 @@ export default async function BathroomDetailPage({
           </p>
         </div>
 
-        <OpenClose isOpen={!bathroom.is_closed} />
+        <OpenClose
+          bathroomId={bathroom.id}
+          initialIsOpen={!bathroom.is_closed}
+        />
 
         <div className="flex items-center gap-3">
           <Rating value={averageRating} />

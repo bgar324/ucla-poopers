@@ -15,7 +15,21 @@ interface UpdateProfileBody {
   firstName?: string;
   lastName?: string;
   username?: string;
+  avatarUrl?: string | null;
   twoFactorEnabled?: boolean;
+}
+
+function normalizeAvatarUrl(value: string | null | undefined, fallback: string | null) {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 async function ensureUserRecord(request: NextRequest) {
@@ -83,6 +97,7 @@ export async function PUT(request: NextRequest) {
     const nextLastName = safeProfileString(body.lastName, profile.lastName);
     const requestedUsername = safeProfileString(body.username, profile.username);
     const nextUsername = normalizeUsername(requestedUsername);
+    const nextAvatarUrl = normalizeAvatarUrl(body.avatarUrl, profile.avatarUrl);
 
     if (nextUsername.length < 3 || nextUsername.length > 24) {
       return NextResponse.json(
@@ -109,6 +124,7 @@ export async function PUT(request: NextRequest) {
         firstName: nextFirstName,
         lastName: nextLastName,
         username: nextUsername,
+        avatarUrl: nextAvatarUrl,
         twoFactorEnabled:
           parseOptionalBoolean(body.twoFactorEnabled) ?? profile.twoFactorEnabled,
       },

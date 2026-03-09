@@ -10,6 +10,7 @@ export default function Avatar({
   src?: string
 }) {
   const fallbackSrc = "/assets/bear.png"
+
   const normalizedSrc =
     src && src.trim().length > 0 ? src : fallbackSrc
 
