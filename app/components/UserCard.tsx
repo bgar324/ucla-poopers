@@ -15,12 +15,20 @@ interface UserCardProps {
   user: UserItem
   onClick?: () => void
   isSelected?: boolean
+  isFollowing?: boolean
+  showFollowButton?: boolean
+  onToggleFollow?: () => void
+  isTogglingFollow?: boolean
 }
 
 export default function UserCard({
   user,
   onClick,
   isSelected = false,
+  isFollowing = false,
+  showFollowButton = false,
+  onToggleFollow,
+  isTogglingFollow = false,
 }: UserCardProps) {
   return (
     <button
@@ -52,6 +60,24 @@ export default function UserCard({
             </span>
           </div>
         </div>
+
+        {showFollowButton ? (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
+              onToggleFollow?.()
+            }}
+            disabled={isTogglingFollow}
+            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+              isFollowing
+                ? "border border-amber-900 bg-amber-900 text-white hover:bg-amber-800"
+                : "border border-amber-900 bg-white text-amber-900 hover:bg-amber-100"
+            } ${isTogglingFollow ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+          >
+            {isTogglingFollow ? "Updating..." : isFollowing ? "Following" : "Follow"}
+          </button>
+        ) : null}
       </div>
     </button>
   )
