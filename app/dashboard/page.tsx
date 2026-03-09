@@ -12,6 +12,7 @@ import FilterDropdown, {
 } from "../components/FilterDropdown";
 import SpotCard from "../components/SpotCard";
 import ToiletBG from "../components/ToiletBG";
+import Footer from "../components/Footer";
 
 const BathroomMap = dynamic(
   () => import("../components/BathroomMap").then((mod) => mod.default),

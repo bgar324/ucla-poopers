@@ -180,7 +180,7 @@ export default function BathroomDetailPanel({
         </div>
 
         <section className="mt-8">
-          <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="flex flex-wrap items-end justify-between gap-4 px-4">
             <div>
               <p className="font-rubik text-[11px] uppercase tracking-[0.24em] text-amber-900/55">
                 Community notes
@@ -203,37 +203,48 @@ export default function BathroomDetailPanel({
             <div className="mt-5 space-y-4">
               {bathroom.reviews.map((review) => (
                 <article
-                  key={review.id}
-                  className="rounded-[1.5rem] border border-amber-900/10 bg-white/80 p-6 shadow-[0_16px_50px_rgba(15,23,42,0.06)]"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <Rating value={review.rating} />
-                        <span className="font-rubik text-lg text-amber-900">
-                          {review.rating}/5 poops
-                        </span>
-                      </div>
-                      <p className="mt-4 font-rubik text-lg leading-8 text-slate-700">
-                        {review.description || "No written review."}
-                      </p>
-                    </div>
+  key={review.id}
+  className="rounded-[1.5rem] border border-amber-900/10 bg-white/80 p-6 shadow-md hover:shadow-lg transition"
+>
+  <div className="flex items-start justify-between gap-4">
+    
+    {/* Left side: avatar + username + date */}
+    <div className="flex items-start gap-3">
+      <UserAvatar size={44} src={review.avatarUrl ?? undefined} />
 
-                    <div className="flex items-center gap-3">
-                      <UserAvatar size={44} src={review.avatarUrl ?? undefined} />
-                      <div className="text-left">
-                        <p className="font-rubik text-base text-slate-500">
-                          {review.username}
-                        </p>
-                        {formatReviewDate(review.createdAt) ? (
-                          <p className="mt-1 font-rubik text-sm text-slate-400">
-                            {formatReviewDate(review.createdAt)}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                </article>
+      <div>
+        <p className="font-rubik text-base text-slate-600">
+          {review.username}
+        </p>
+
+        {formatReviewDate(review.createdAt) ? (
+          <p className="mt-1 font-rubik text-sm text-slate-400">
+            {formatReviewDate(review.createdAt)}
+          </p>
+        ) : null}
+      </div>
+    </div>
+
+    {/* Right side: rating */}
+    <div className="flex items-center gap-3">
+      <Rating value={review.rating} />
+      <span className="font-rubik text-lg text-amber-900">
+        {review.rating}/5 poops
+      </span>
+    </div>
+
+  </div>
+
+  {/* Divider */}
+  <div className="mt-4 border-t border-amber-900/10 pt-4">
+
+    {/* Review text */}
+    <p className="font-rubik text-xl text-slate-800 leading-8">
+      {review.description || "No written review."}
+    </p>
+
+  </div>
+</article>
               ))}
             </div>
           )}
