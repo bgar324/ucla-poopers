@@ -9,28 +9,44 @@ export default function Avatar({
   size?: number
   src?: string
 }) {
-  const fallbackSrc = "/assets/bear.png"
+  const fallbackSrc = "/assets/default-avatar.svg"
 
   const normalizedSrc =
     src && src.trim().length > 0 ? src : fallbackSrc
 
   const [imgSrc, setImgSrc] = useState(normalizedSrc)
+  const isFallbackImage = imgSrc === fallbackSrc
 
   useEffect(() => {
     setImgSrc(normalizedSrc)
   }, [normalizedSrc])
 
   return (
-    <img
-      src={imgSrc}
-      alt="Profile avatar"
+    <div
       style={{ width: size, height: size }}
-      className="rounded-full object-contain bg-gray-200"
-      onError={() => {
-        if (imgSrc !== fallbackSrc) {
-          setImgSrc(fallbackSrc)
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200"
+    >
+      <img
+        src={imgSrc}
+        alt="Profile avatar"
+        style={
+          isFallbackImage
+            ? {
+                width: Math.round(size * 0.66),
+                height: Math.round(size * 0.66),
+              }
+            : {
+                width: "100%",
+                height: "100%",
+              }
         }
-      }}
-    />
+        className={isFallbackImage ? "object-contain object-center" : "object-cover"}
+        onError={() => {
+          if (imgSrc !== fallbackSrc) {
+            setImgSrc(fallbackSrc)
+          }
+        }}
+      />
+    </div>
   )
 }
