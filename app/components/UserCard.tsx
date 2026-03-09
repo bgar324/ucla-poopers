@@ -31,11 +31,18 @@ export default function UserCard({
   isTogglingFollow = false,
 }: UserCardProps) {
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault()
+          onClick?.()
+        }
+      }}
       aria-pressed={isSelected}
-      className={`block w-full rounded-xl border border-amber-900 p-4 text-left shadow-sm transition hover:shadow-md ${
+      className={`block w-full rounded-xl border border-amber-900 p-4 text-left shadow-sm transition hover:shadow-md cursor-pointer ${
         isSelected ? "bg-amber-50 shadow-md" : "bg-rose-50"
       }`}
     >
@@ -79,6 +86,6 @@ export default function UserCard({
           </button>
         ) : null}
       </div>
-    </button>
+    </div>
   )
 }
