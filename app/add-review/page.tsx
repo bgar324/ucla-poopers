@@ -29,6 +29,9 @@ function formatBathroomType(type: string) {
 export default function AddReviewPage() {
   const router = useRouter();
   const [supabaseAuthId, setSupabaseAuthId] = useState<string | null>(null);
+  const [requestedBathroomId, setRequestedBathroomId] = useState<string | null>(
+    null
+  );
 
   const [bathrooms, setBathrooms] = useState<BathroomOption[]>([]);
   const [bathroomSearch, setBathroomSearch] = useState("");
@@ -65,6 +68,15 @@ export default function AddReviewPage() {
   }, [router]);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    setRequestedBathroomId(params.get("bathroomId"));
+  }, []);
+
+  useEffect(() => {
     if (!supabaseAuthId) {
       return;
     }
@@ -84,6 +96,26 @@ export default function AddReviewPage() {
     };
     void load();
   }, [supabaseAuthId]);
+
+  useEffect(() => {
+    if (!requestedBathroomId || bathrooms.length === 0) {
+      return;
+    }
+
+    const requestedBathroom = bathrooms.find(
+      (bathroom) => bathroom.id === requestedBathroomId
+    );
+
+    if (!requestedBathroom) {
+      return;
+    }
+
+    setSelectedBathroomId(requestedBathroom.id);
+    setBathroomSearch(
+      `${requestedBathroom.name} – ${requestedBathroom.building}, Floor ${requestedBathroom.floor}`
+    );
+    setAddNewBathroom(false);
+  }, [bathrooms, requestedBathroomId]);
 
   useEffect(() => {
     if (!navigator.geolocation) return;

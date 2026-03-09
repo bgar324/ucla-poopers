@@ -47,6 +47,7 @@ export async function GET(
             user: {
               select: {
                 username: true,
+                avatarUrl: true,
               },
             },
           },
@@ -89,6 +90,7 @@ export async function GET(
           description: review.description,
           createdAt: review.created_at,
           username: review.user?.username ?? "Anonymous",
+          avatarUrl: review.user?.avatarUrl ?? null,
         })),
       },
     });

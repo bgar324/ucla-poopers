@@ -1,13 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import Rating from "./Rating";
+import UserAvatar from "./UserAvatar";
 
 interface BathroomReview {
   id: string;
   rating: number;
   description: string;
   username: string;
+  avatarUrl?: string | null;
   createdAt: string;
 }
 
@@ -114,7 +117,6 @@ export default function BathroomDetailPanel({
 
   return (
     <div className="h-full overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.68),_transparent_42%),_#f8f4e6] pt-6">
-      {/* Navigation - No longer sticky */}
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-4 lg:px-10">
         <button
           type="button"
@@ -123,10 +125,16 @@ export default function BathroomDetailPanel({
         >
           Back to map
         </button>
+
+        <Link
+          href={`/add-review?bathroomId=${bathroom.id}`}
+          className="rounded-full bg-amber-900 px-4 py-2 font-rubik text-sm font-medium text-white transition hover:bg-amber-800"
+        >
+          Add review
+        </Link>
       </div>
 
       <div className="mx-auto w-full max-w-5xl px-6 py-8 lg:px-10 lg:py-10">
-        {/* Main Content Card */}
         <div className="rounded-[2rem] border border-amber-900/10 bg-rose-100/95 p-8 shadow-[0_28px_90px_rgba(120,53,15,0.12)] lg:p-10">
           <div className="max-w-4xl">
             <div className="flex flex-wrap items-center gap-4">
@@ -171,10 +179,12 @@ export default function BathroomDetailPanel({
           </div>
         </div>
 
-        {/* Reviews Section */}
         <section className="mt-8">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
+              <p className="font-rubik text-[11px] uppercase tracking-[0.24em] text-amber-900/55">
+                Community notes
+              </p>
               <h2 className="mt-2 font-rubik text-3xl font-semibold text-amber-900">
                 Reviews
               </h2>
@@ -209,15 +219,18 @@ export default function BathroomDetailPanel({
                       </p>
                     </div>
 
-                    <div className="text-right">
-                      <p className="font-rubik text-base text-slate-500">
-                        {review.username}
-                      </p>
-                      {formatReviewDate(review.createdAt) ? (
-                        <p className="mt-1 font-rubik text-sm text-slate-400">
-                          {formatReviewDate(review.createdAt)}
+                    <div className="flex items-center gap-3">
+                      <UserAvatar size={44} src={review.avatarUrl ?? undefined} />
+                      <div className="text-left">
+                        <p className="font-rubik text-base text-slate-500">
+                          {review.username}
                         </p>
-                      ) : null}
+                        {formatReviewDate(review.createdAt) ? (
+                          <p className="mt-1 font-rubik text-sm text-slate-400">
+                            {formatReviewDate(review.createdAt)}
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 </article>

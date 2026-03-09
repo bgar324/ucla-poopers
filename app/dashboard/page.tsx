@@ -6,6 +6,7 @@ import supabase from "@/supabaseClient";
 import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import BathroomDetailPanel from "../components/BathroomDetailPanel";
 import FilterDropdown, {
   type DashboardFilter,
 } from "../components/FilterDropdown";
@@ -96,6 +97,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<DashboardFilter>("all");
   const [selectedBuilding, setSelectedBuilding] = useState("all");
+  const [activePanel, setActivePanel] = useState<"map" | "detail">("map");
   const [selectedBathroomId, setSelectedBathroomId] = useState<string | null>(
     null
   );
@@ -222,53 +224,58 @@ export default function Dashboard() {
   }, [spots]);
 
   const filteredSpots = useMemo(() => {
-  const query = searchQuery.trim().toLowerCase();
+    const query = searchQuery.trim().toLowerCase();
 
-  let results = spots.filter((spot) => matchesSearch(spot, query));
+    let results = spots.filter((spot) => matchesSearch(spot, query));
 
-  if (selectedBuilding !== "all") {
-    results = results.filter((spot) => spot.building === selectedBuilding);
-  }
+    if (selectedBuilding !== "all") {
+      results = results.filter((spot) => spot.building === selectedBuilding);
+    }
 
-  switch (activeFilter) {
-    case "top-rated":
-      results = [...results].sort((a, b) => b.rating - a.rating);
-      break;
+    switch (activeFilter) {
+      case "top-rated":
+        results = [...results].sort((a, b) => b.rating - a.rating);
+        break;
+      case "worst-rated":
+        results = [...results].sort((a, b) => a.rating - b.rating);
+        break;
+      case "gender-neutral":
+        results = results.filter((spot) => spot.type === "gender-neutral");
+        results = [...results].sort((a, b) => b.rating - a.rating);
+        break;
+      case "accessible":
+        results = results.filter((spot) => spot.type === "accessible");
+        results = [...results].sort((a, b) => b.rating - a.rating);
+        break;
+      case "near-me":
+        if (userLocation) {
+          results = [...results].sort(
+            (a, b) =>
+              getDistanceInMiles(userLocation, a) -
+              getDistanceInMiles(userLocation, b)
+          );
+        }
+        break;
+      default:
+        results = [...results].sort((a, b) => b.rating - a.rating);
+        break;
+    }
 
-    case "worst-rated":
-      results = [...results].sort((a, b) => a.rating - b.rating);
-      break;
+    return results;
+  }, [spots, searchQuery, activeFilter, selectedBuilding, userLocation]);
 
-    case "gender-neutral":
-      results = results.filter((spot) => spot.type === "gender-neutral");
-      results = [...results].sort((a, b) => b.rating - a.rating);
-      break;
+  useEffect(() => {
+    if (
+      selectedBathroomId &&
+      !filteredSpots.some((spot) => spot.id === selectedBathroomId)
+    ) {
+      setSelectedBathroomId(null);
+      setActivePanel("map");
+    }
+  }, [filteredSpots, selectedBathroomId]);
 
-    case "accessible":
-      results = results.filter((spot) => spot.type === "accessible");
-      results = [...results].sort((a, b) => b.rating - a.rating);
-      break;
-
-    case "near-me":
-      if (userLocation) {
-        results = [...results].sort(
-          (a, b) =>
-            getDistanceInMiles(userLocation, a) -
-            getDistanceInMiles(userLocation, b)
-        );
-      }
-      break;
-
-    default:
-      // default behavior: sort by rating
-      results = [...results].sort((a, b) => b.rating - a.rating);
-      break;
-  }
-
-  return results;
-}, [spots, searchQuery, activeFilter, selectedBuilding, userLocation]);
   const sidebarSpots = useMemo(() => {
-    if (!selectedBathroomId) {
+    if (activePanel !== "map" || !selectedBathroomId) {
       return filteredSpots;
     }
 
@@ -277,9 +284,10 @@ export default function Dashboard() {
     );
 
     return selectedSpot ? [selectedSpot] : filteredSpots;
-  }, [filteredSpots, selectedBathroomId]);
+  }, [activePanel, filteredSpots, selectedBathroomId]);
 
   const handleMarkerClick = (bathroomId: string) => {
+    setActivePanel("map");
     setSelectedBathroomId((current) =>
       current === bathroomId ? null : bathroomId
     );
@@ -317,6 +325,7 @@ export default function Dashboard() {
               onChange={(event) => {
                 setSearchQuery(event.target.value);
                 setSelectedBathroomId(null);
+                setActivePanel("map");
               }}
               placeholder="Search poop spots..."
               className="h-12 w-full rounded-full border border-amber-900/60 bg-white pl-11 pr-5 text-amber-900 placeholder:text-amber-900/60 transition focus:outline-none focus:ring-2 focus:ring-amber-900"
@@ -329,8 +338,8 @@ export default function Dashboard() {
                 Poop Spots
               </h2>
               <p className="font-rubik text-sm text-gray-500">
-                {sidebarSpots.length} result
-                {sidebarSpots.length === 1 ? "" : "s"} •{" "}
+                {filteredSpots.length} result
+                {filteredSpots.length === 1 ? "" : "s"} •{" "}
                 {getFilterLabel(activeFilter)}
                 {selectedBuilding !== "all" ? ` • ${selectedBuilding}` : ""}
               </p>
@@ -348,6 +357,7 @@ export default function Dashboard() {
               onChange={(value) => {
                 setActiveFilter(value);
                 setSelectedBathroomId(null);
+                setActivePanel("map");
               }}
             />
           </div>
@@ -365,6 +375,7 @@ export default function Dashboard() {
               onChange={(event) => {
                 setSelectedBuilding(event.target.value);
                 setSelectedBathroomId(null);
+                setActivePanel("map");
               }}
               className="h-11 w-full rounded-xl border border-amber-900/30 bg-white px-4 font-rubik text-sm text-amber-900 outline-none transition focus:ring-2 focus:ring-amber-900"
             >
@@ -377,10 +388,13 @@ export default function Dashboard() {
             </select>
           </div>
 
-          {selectedBathroomId ? (
+          {activePanel === "map" && selectedBathroomId ? (
             <button
               type="button"
-              onClick={() => setSelectedBathroomId(null)}
+              onClick={() => {
+                setSelectedBathroomId(null);
+                setActivePanel("map");
+              }}
               className="mt-4 rounded-xl border border-amber-900/30 bg-amber-50 px-4 py-2 font-rubik text-sm text-amber-900 transition hover:bg-amber-100"
             >
               Show all spots again
@@ -403,11 +417,17 @@ export default function Dashboard() {
             {sidebarSpots.map((spot) => (
               <div
                 key={spot.id}
-                onClickCapture={() => setSelectedBathroomId(spot.id)}
                 onMouseEnter={() => setHoveredBathroomId(spot.id)}
                 onMouseLeave={() => setHoveredBathroomId(null)}
               >
-                <SpotCard spot={spot} />
+                <SpotCard
+                  spot={spot}
+                  onClick={() => {
+                    setSelectedBathroomId(spot.id);
+                    setActivePanel("detail");
+                  }}
+                  isSelected={spot.id === selectedBathroomId}
+                />
               </div>
             ))}
 
@@ -419,9 +439,14 @@ export default function Dashboard() {
           </div>
         </aside>
 
-        <section className="min-h-[500px] lg:h-full lg:min-h-0 overflow-hidden">
-          {!errorMessage ? (
-            <div className="h-full w-full">
+        <section className="relative min-h-[500px] overflow-hidden lg:h-full lg:min-h-0">
+          {activePanel === "detail" && selectedBathroomId ? (
+            <BathroomDetailPanel
+              bathroomId={selectedBathroomId}
+              onBackToMap={() => setActivePanel("map")}
+            />
+          ) : !errorMessage ? (
+            <div className="absolute inset-0">
               <BathroomMap
                 bathrooms={filteredSpots}
                 selectedBathroomId={selectedBathroomId}
