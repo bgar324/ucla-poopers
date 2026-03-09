@@ -4,21 +4,45 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
+async function getCurrentUserId(request: NextRequest) {
+  const { user } = await requireAuthUser(request);
+
+  const currentUser = await prisma.user.findUnique({
+    where: { supabaseAuthId: user.id },
+    select: { id: true },
+  });
+
+  if (!currentUser) {
+    return null;
+  }
+
+  return currentUser.id;
+}
+
+async function getTargetUserFromBody(request: NextRequest) {
+  const body = (await request.json().catch(() => null)) as
+    | { userId?: string; followingId?: string }
+    | null;
+
+  const targetUserId = body?.userId?.trim() || body?.followingId?.trim() || "";
+
+  if (!targetUserId) {
+    return { error: "Missing target user id.", targetUserId: null };
+  }
+
+  return { error: null, targetUserId };
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const { user } = await requireAuthUser(request);
+    const currentUserId = await getCurrentUserId(request);
 
-    const currentUser = await prisma.user.findUnique({
-      where: { supabaseAuthId: user.id },
-      select: { id: true },
-    });
-
-    if (!currentUser) {
+    if (!currentUserId) {
       return NextResponse.json({ error: "User not found." }, { status: 404 });
     }
 
     const follows = await prisma.follow.findMany({
-      where: { followerId: currentUser.id },
+      where: { followerId: currentUserId },
       select: {
         following: {
           select: {
@@ -60,6 +84,122 @@ export async function GET(request: NextRequest) {
         : 500;
 
     console.error("GET FOLLOW ERROR:", error);
+      return NextResponse.json({ error: message }, { status });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const currentUserId = await getCurrentUserId(request);
+
+    if (!currentUserId) {
+      return NextResponse.json({ error: "User not found." }, { status: 404 });
+    }
+
+    const { error, targetUserId } = await getTargetUserFromBody(request);
+
+    if (error || !targetUserId) {
+      return NextResponse.json(
+        { error: error ?? "Missing target user id." },
+        { status: 400 },
+      );
+    }
+
+    if (targetUserId === currentUserId) {
+      return NextResponse.json(
+        { error: "You cannot follow yourself." },
+        { status: 400 },
+      );
+    }
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true },
+    });
+
+    if (!targetUser) {
+      return NextResponse.json({ error: "Target user not found." }, { status: 404 });
+    }
+
+    const existingFollow = await prisma.follow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: currentUserId,
+          followingId: targetUserId,
+        },
+      },
+      select: { followerId: true },
+    });
+
+    if (existingFollow) {
+      return NextResponse.json(
+        { error: "You already follow this user." },
+        { status: 409 },
+      );
+    }
+
+    await prisma.follow.create({
+      data: {
+        followerId: currentUserId,
+        followingId: targetUserId,
+      },
+    });
+
+    return NextResponse.json({ success: true }, { status: 201 });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to follow user.";
+    const status =
+      message === "Missing bearer token." || message === "Unauthorized."
+        ? 401
+        : 500;
+
+    console.error("POST FOLLOW ERROR:", error);
+    return NextResponse.json({ error: message }, { status });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const currentUserId = await getCurrentUserId(request);
+
+    if (!currentUserId) {
+      return NextResponse.json({ error: "User not found." }, { status: 404 });
+    }
+
+    const { error, targetUserId } = await getTargetUserFromBody(request);
+
+    if (error || !targetUserId) {
+      return NextResponse.json(
+        { error: error ?? "Missing target user id." },
+        { status: 400 },
+      );
+    }
+
+    const deleted = await prisma.follow.deleteMany({
+      where: {
+        followerId: currentUserId,
+        followingId: targetUserId,
+      },
+    });
+
+    if (deleted.count === 0) {
+      return NextResponse.json(
+        { error: "You do not follow this user." },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to unfollow user.";
+    const status =
+      message === "Missing bearer token." || message === "Unauthorized."
+        ? 401
+        : 500;
+
+    console.error("DELETE FOLLOW ERROR:", error);
     return NextResponse.json({ error: message }, { status });
   }
 }
