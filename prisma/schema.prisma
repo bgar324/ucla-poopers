@@ -20,18 +20,23 @@ model User {
 
   bathrooms Bathroom[] @relation("UserBathrooms")
   reviews   Review[]
+  following Follow[]   @relation("UserFollowing")
+  followers Follow[]   @relation("UserFollowers")
 }
 
 model Bathroom {
-  id         String  @id @default(cuid())
-  name       String
-  building   String
-  floor      Int
-  latitude   Float
-  longitude  Float
-  type       String
-  is_closed  Boolean @default(false)
-  created_by String?
+  id                     String    @id @default(cuid())
+  name                   String
+  building               String
+  floor                  Int
+  latitude               Float
+  longitude              Float
+  type                   String
+  is_closed              Boolean   @default(false)
+  created_by             String?
+  reviewSummary          String?
+  reviewSummaryReviewCount Int?
+  reviewSummaryUpdatedAt DateTime?
 
   creator User?    @relation("UserBathrooms", fields: [created_by], references: [id])
   reviews Review[]
@@ -49,4 +54,16 @@ model Review {
   user     User     @relation(fields: [user_id], references: [id])
 
   @@unique([bathroom_id, user_id])
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId])
 }

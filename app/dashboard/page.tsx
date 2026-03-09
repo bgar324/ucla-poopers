@@ -444,7 +444,8 @@ export default function Dashboard() {
           {activePanel === "detail" && selectedBathroomId ? (
             <BathroomDetailPanel
               bathroomId={selectedBathroomId}
-              onBackToMap={() => setActivePanel("map")}
+              onBack={() => setActivePanel("map")}
+              backLabel="Back to map"
             />
           ) : !errorMessage ? (
             <div className="absolute inset-0">

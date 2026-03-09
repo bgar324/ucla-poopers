@@ -472,9 +472,6 @@ export default function ProfilePage() {
                   <p className="font-rubik text-lg text-amber-900">
                     Profile Photo
                   </p>
-                  <p className="font-rubik text-sm text-gray-600">
-                    PNG, JPG, or WEBP up to 5MB.
-                  </p>
                 </div>
               </div>
 

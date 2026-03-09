@@ -1,3 +1,4 @@
+import { generateBathroomSummary, MIN_REVIEWS_FOR_AI_SUMMARY } from "@/lib/geminiBathroomSummary";
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -23,6 +24,18 @@ function getAverageRating(ratings: number[]): number {
 
   const total = ratings.reduce((sum, rating) => sum + rating, 0);
   return Math.round((total / ratings.length) * 10) / 10;
+}
+
+function getFallbackDetail(
+  building: string,
+  floor: number,
+  type: string,
+  primaryReview?: { description: string },
+) {
+  return (
+    primaryReview?.description ||
+    `${building} floor ${floor} ${formatBathroomType(type)}`
+  );
 }
 
 export async function GET(
@@ -65,6 +78,54 @@ export async function GET(
     const ratings = bathroom.reviews.map((review) => review.rating);
     const averageRating = getAverageRating(ratings);
     const primaryReview = bathroom.reviews[0];
+    const reviewCount = bathroom.reviews.length;
+    const fallbackDetail = getFallbackDetail(
+      bathroom.building,
+      bathroom.floor,
+      bathroom.type,
+      primaryReview,
+    );
+
+    let detail = fallbackDetail;
+
+    const canUseAiSummary = reviewCount >= MIN_REVIEWS_FOR_AI_SUMMARY;
+    const hasCachedSummary =
+      canUseAiSummary &&
+      typeof bathroom.reviewSummary === "string" &&
+      bathroom.reviewSummary.trim().length > 0 &&
+      bathroom.reviewSummaryReviewCount === reviewCount;
+
+    if (hasCachedSummary) {
+      detail = bathroom.reviewSummary!.trim();
+    } else if (canUseAiSummary) {
+      try {
+        const summary = await generateBathroomSummary({
+          bathroomName: bathroom.name,
+          building: bathroom.building,
+          floor: bathroom.floor,
+          typeLabel: formatBathroomType(bathroom.type),
+          reviews: bathroom.reviews.map((review) => ({
+            rating: review.rating,
+            description: review.description,
+          })),
+        });
+
+        if (summary) {
+          detail = summary;
+
+          await prisma.bathroom.update({
+            where: { id: bathroom.id },
+            data: {
+              reviewSummary: summary,
+              reviewSummaryReviewCount: reviewCount,
+              reviewSummaryUpdatedAt: new Date(),
+            },
+          });
+        }
+      } catch (summaryError) {
+        console.error("BATHROOM SUMMARY ERROR:", summaryError);
+      }
+    }
 
     return NextResponse.json({
       bathroom: {
@@ -78,12 +139,8 @@ export async function GET(
         typeLabel: formatBathroomType(bathroom.type),
         isOpen: !bathroom.is_closed,
         rating: averageRating,
-        reviewCount: bathroom.reviews.length,
-        detail:
-          primaryReview?.description ??
-          `${bathroom.building} floor ${bathroom.floor} ${formatBathroomType(
-            bathroom.type,
-          )}`,
+        reviewCount,
+        detail,
         reviews: bathroom.reviews.map((review) => ({
           id: review.id,
           rating: review.rating,

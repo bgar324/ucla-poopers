@@ -5,6 +5,8 @@ import ToiletBG from "../components/ToiletBG"
 import { useState, useEffect } from "react"
 import Avatar from "../components/UserAvatar"
 import UserCard from "../components/UserCard"
+import BathroomDetailPanel from "../components/BathroomDetailPanel"
+import SpotCard from "../components/SpotCard"
 import supabase from "@/supabaseClient"
 import { useRouter } from "next/navigation"
 
@@ -41,6 +43,7 @@ interface ReviewRecord {
     building: string
     floor: number
     type: string
+    isOpen: boolean
   }
 }
 
@@ -52,6 +55,10 @@ export default function PoopersProfilePage() {
   const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null)
   const [reviews, setReviews] = useState<ReviewRecord[]>([])
   const [users, setUsers] = useState<UserRecord[]>([])
+  const [selectedReview, setSelectedReview] = useState<{
+    reviewId: string
+    bathroomId: string
+  } | null>(null)
   const [isLoadingReviews, setIsLoadingReviews] = useState(true)
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
 
@@ -203,6 +210,25 @@ export default function PoopersProfilePage() {
       ? reviews.filter((review) => review.user.username === displayedUser.username)
       : []
 
+  const reviewCountsByBathroom = reviews.reduce<Record<string, number>>((counts, review) => {
+    counts[review.bathroom.id] = (counts[review.bathroom.id] ?? 0) + 1
+    return counts
+  }, {})
+
+  useEffect(() => {
+    if (!selectedReview) {
+      return
+    }
+
+    const stillVisible = displayedUserReviews.some(
+      (review) => review.id === selectedReview.reviewId
+    )
+
+    if (!stillVisible) {
+      setSelectedReview(null)
+    }
+  }, [displayedUserReviews, selectedReview])
+
   const normalizedQuery = searchQuery.trim().toLowerCase()
 
   const topUsers = users.filter((user) => {
@@ -227,7 +253,7 @@ export default function PoopersProfilePage() {
       <div className="grid grid-cols-1 md:grid-cols-3 h-[calc(100vh-80px)]">
         
         {/* Left 1/3 */}
-        <aside className="md:col-span-1 bg-gray-100 p-6 overflow-y-auto">
+        <aside className="md:col-span-1 bg-white/90 p-6 overflow-y-auto backdrop-blur-sm">
            <div className="flex flex-col items-center text-center space-y-2">
     
                 {/* Avatar */}
@@ -265,35 +291,32 @@ export default function PoopersProfilePage() {
               ) : (
                 <div className="space-y-4">
                   {displayedUserReviews.map((review) => (
-                    <div
+                    <SpotCard
                       key={review.id}
-                      className="rounded-xl border border-amber-900 bg-white p-4 shadow-sm"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <h4 className="font-semibold text-amber-900">
-                            {review.bathroom.name}
-                          </h4>
-                          <p className="text-sm text-gray-600">
-                            {review.bathroom.building}, Floor {review.bathroom.floor}
-                          </p>
-                        </div>
-
-                        <p className="font-semibold text-amber-900">
-                          {review.rating}/5
-                        </p>
-                      </div>
-
-                      {review.description ? (
-                        <p className="mt-3 text-sm text-gray-700">
-                          {review.description}
-                        </p>
-                      ) : (
-                        <p className="mt-3 text-sm italic text-gray-400">
-                          No written review.
-                        </p>
-                      )}
-                    </div>
+                      spot={{
+                        id: review.bathroom.id,
+                        rating: review.rating,
+                        name: review.bathroom.name,
+                        detail: review.description || "No written review.",
+                        reviewCount: reviewCountsByBathroom[review.bathroom.id] ?? 0,
+                        isOpen: review.bathroom.isOpen,
+                        typeLabel:
+                          review.bathroom.type === "accessible"
+                            ? "Accessible"
+                            : review.bathroom.type === "female"
+                              ? "Female"
+                              : review.bathroom.type === "male"
+                                ? "Male"
+                                : "Gender Neutral",
+                      }}
+                      onClick={() =>
+                        setSelectedReview({
+                          reviewId: review.id,
+                          bathroomId: review.bathroom.id,
+                        })
+                      }
+                      isSelected={selectedReview?.reviewId === review.id}
+                    />
                   ))}
                 </div>
               )}
@@ -301,66 +324,74 @@ export default function PoopersProfilePage() {
         </aside>
 
         {/* Right 2/3 */}
-        <section className="md:col-span-2 p-6 overflow-y-auto">
-        
-          {/* Filter Buttons */}
-          <div className="flex gap-4 mb-4">
-            {filters.map((filter) => (
-              <button
-                key={filter.value}
-                onClick={() => setActiveFilter(filter.value)}
-                className={`rounded-full px-4 py-1 w-1/2 border border-2 cursor-pointer cursor-hover:-y-0.5 transition-all duration-200
-                  ${
-                    activeFilter === filter.value
-                      ? "bg-amber-900 text-white border-amber-900"
-                      : "bg-white text-amber-900 border-amber-900 hover:bg-amber-100"
-                  }
-                `}
-              >
-                {filter.label}
-              </button>
-            ))}
-          </div>
+        <section className="relative md:col-span-2 overflow-hidden bg-[#f8f4e6]">
+          <ToiletBG />
 
-          <div className="mb-6">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search users"
-              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-amber-900"
+          {selectedReview ? (
+            <BathroomDetailPanel
+              bathroomId={selectedReview.bathroomId}
+              onBack={() => setSelectedReview(null)}
+              backLabel="Back to poopers"
+              variant="embedded"
             />
-          </div>
-
-          {/* Users Content Area */}
-          <div>
-            {activeFilter === "top" ? (
-              isLoadingUsers ? (
-                <p className="text-gray-600">Loading users...</p>
-              ) : topUsers.length === 0 ? (
-                <p className="text-gray-600">No users found.</p>
-              ) : (
-                <div className="space-y-4">
-                  {topUsers.map((user) => (
-                    <UserCard
-                      key={user.id}
-                      user={user}
-                      onClick={() => setSelectedUser(user)}
-                      isSelected={displayedUser?.id === user.id}
-                    />
-                  ))}
-                </div>
-              )
-            ) : (
-              <div className="mt-6">
-                <p className="text-gray-600">
-                  Friends will go here once the friends endpoint is ready.
-                </p>
+          ) : (
+            <div className="relative z-10 h-full overflow-y-auto p-6">
+              <div className="flex gap-4 mb-4">
+                {filters.map((filter) => (
+                  <button
+                    key={filter.value}
+                    onClick={() => setActiveFilter(filter.value)}
+                    className={`rounded-full px-4 py-1 w-1/2 border border-2 cursor-pointer cursor-hover:-y-0.5 transition-all duration-200
+                      ${
+                        activeFilter === filter.value
+                          ? "bg-amber-900 text-white border-amber-900"
+                          : "bg-white text-amber-900 border-amber-900 hover:bg-amber-100"
+                      }
+                    `}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
               </div>
-            )}
-            
-          </div>
 
+              <div className="mb-6">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search users"
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-amber-900"
+                />
+              </div>
+
+              <div>
+                {activeFilter === "top" ? (
+                  isLoadingUsers ? (
+                    <p className="text-gray-600">Loading users...</p>
+                  ) : topUsers.length === 0 ? (
+                    <p className="text-gray-600">No users found.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {topUsers.map((user) => (
+                        <UserCard
+                          key={user.id}
+                          user={user}
+                          onClick={() => setSelectedUser(user)}
+                          isSelected={displayedUser?.id === user.id}
+                        />
+                      ))}
+                    </div>
+                  )
+                ) : (
+                  <div className="mt-6">
+                    <p className="text-gray-600">
+                      Friends will go here once the friends endpoint is ready.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </section>
 
       </div>
