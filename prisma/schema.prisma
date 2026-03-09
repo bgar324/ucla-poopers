@@ -25,15 +25,18 @@ model User {
 }
 
 model Bathroom {
-  id         String  @id @default(cuid())
-  name       String
-  building   String
-  floor      Int
-  latitude   Float
-  longitude  Float
-  type       String
-  is_closed  Boolean @default(false)
-  created_by String?
+  id                     String    @id @default(cuid())
+  name                   String
+  building               String
+  floor                  Int
+  latitude               Float
+  longitude              Float
+  type                   String
+  is_closed              Boolean   @default(false)
+  created_by             String?
+  reviewSummary          String?
+  reviewSummaryReviewCount Int?
+  reviewSummaryUpdatedAt DateTime?
 
   creator User?    @relation("UserBathrooms", fields: [created_by], references: [id])
   reviews Review[]

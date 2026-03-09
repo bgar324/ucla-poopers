@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { generateBathroomSummary, MIN_REVIEWS_FOR_AI_SUMMARY } from "@/lib/geminiBathroomSummary";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+
+function formatBathroomType(type: string): string {
+  switch (type) {
+    case "accessible":
+      return "Accessible";
+    case "female":
+      return "Female";
+    case "male":
+      return "Male";
+    default:
+      return "Gender Neutral";
+  }
+}
 
 //add review to existing bathroom or create a new one
 export async function POST(req: NextRequest) {
@@ -83,6 +97,66 @@ export async function POST(req: NextRequest) {
         bathroom_id: targetBathroom.id,
       },
     });
+
+    try {
+      const bathroomForSummary = await prisma.bathroom.findUnique({
+        where: { id: targetBathroom.id },
+        select: {
+          id: true,
+          name: true,
+          building: true,
+          floor: true,
+          type: true,
+          reviews: {
+            orderBy: { created_at: "desc" },
+            select: {
+              rating: true,
+              description: true,
+            },
+          },
+        },
+      });
+
+      if (bathroomForSummary) {
+        const reviewCount = bathroomForSummary.reviews.length;
+
+        if (reviewCount >= MIN_REVIEWS_FOR_AI_SUMMARY) {
+          const summary = await generateBathroomSummary({
+            bathroomName: bathroomForSummary.name,
+            building: bathroomForSummary.building,
+            floor: bathroomForSummary.floor,
+            typeLabel: formatBathroomType(bathroomForSummary.type),
+            reviews: bathroomForSummary.reviews,
+          });
+
+          await prisma.bathroom.update({
+            where: { id: bathroomForSummary.id },
+            data: summary
+              ? {
+                  reviewSummary: summary,
+                  reviewSummaryReviewCount: reviewCount,
+                  reviewSummaryUpdatedAt: new Date(),
+                }
+              : {
+                  reviewSummary: null,
+                  reviewSummaryReviewCount: null,
+                  reviewSummaryUpdatedAt: null,
+                },
+          });
+        } else {
+          await prisma.bathroom.update({
+            where: { id: bathroomForSummary.id },
+            data: {
+              reviewSummary: null,
+              reviewSummaryReviewCount: null,
+              reviewSummaryUpdatedAt: null,
+            },
+          });
+        }
+      }
+    } catch (summaryError) {
+      console.error("REVIEW SUMMARY REFRESH ERROR:", summaryError);
+    }
 
     return NextResponse.json({ review: newReview });
   } catch (err: unknown) {
