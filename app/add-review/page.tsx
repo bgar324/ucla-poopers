@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import supabase from "@/supabaseClient";
 import { ChevronDown, Plus } from "lucide-react";
+import ToiletBG from "../components/ToiletBG";
 
 interface BathroomOption {
   id: string;
@@ -249,6 +250,7 @@ export default function AddReviewPage() {
 
   return (
     <main className="min-h-screen bg-amber-50 flex items-center justify-center p-4">
+      <ToiletBG />
       <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-lg">
         <h1 className="text-2xl font-semibold mb-4 text-amber-900">Add Review</h1>
 
