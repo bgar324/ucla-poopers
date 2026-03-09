@@ -197,11 +197,20 @@ export async function GET() {
             building: true,
             floor: true,
             type: true,
+            is_closed: true,
           },
         },
       },
     });
-    return NextResponse.json({ reviews });
+    return NextResponse.json({
+      reviews: reviews.map((review) => ({
+        ...review,
+        bathroom: {
+          ...review.bathroom,
+          isOpen: !review.bathroom.is_closed,
+        },
+      })),
+    });
   } catch (err: unknown) {
     console.error("GET REVIEWS ERROR:", err);
     return NextResponse.json(

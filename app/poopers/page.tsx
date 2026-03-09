@@ -6,6 +6,7 @@ import { useState, useEffect } from "react"
 import Avatar from "../components/UserAvatar"
 import UserCard from "../components/UserCard"
 import BathroomDetailPanel from "../components/BathroomDetailPanel"
+import SpotCard from "../components/SpotCard"
 import supabase from "@/supabaseClient"
 import { useRouter } from "next/navigation"
 
@@ -42,6 +43,7 @@ interface ReviewRecord {
     building: string
     floor: number
     type: string
+    isOpen: boolean
   }
 }
 
@@ -208,6 +210,11 @@ export default function PoopersProfilePage() {
       ? reviews.filter((review) => review.user.username === displayedUser.username)
       : []
 
+  const reviewCountsByBathroom = reviews.reduce<Record<string, number>>((counts, review) => {
+    counts[review.bathroom.id] = (counts[review.bathroom.id] ?? 0) + 1
+    return counts
+  }, {})
+
   useEffect(() => {
     if (!selectedReview) {
       return
@@ -284,46 +291,32 @@ export default function PoopersProfilePage() {
               ) : (
                 <div className="space-y-4">
                   {displayedUserReviews.map((review) => (
-                    <button
+                    <SpotCard
                       key={review.id}
-                      type="button"
+                      spot={{
+                        id: review.bathroom.id,
+                        rating: review.rating,
+                        name: review.bathroom.name,
+                        detail: review.description || "No written review.",
+                        reviewCount: reviewCountsByBathroom[review.bathroom.id] ?? 0,
+                        isOpen: review.bathroom.isOpen,
+                        typeLabel:
+                          review.bathroom.type === "accessible"
+                            ? "Accessible"
+                            : review.bathroom.type === "female"
+                              ? "Female"
+                              : review.bathroom.type === "male"
+                                ? "Male"
+                                : "Gender Neutral",
+                      }}
                       onClick={() =>
                         setSelectedReview({
                           reviewId: review.id,
                           bathroomId: review.bathroom.id,
                         })
                       }
-                      className={`block w-full rounded-xl border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                        selectedReview?.reviewId === review.id
-                          ? "border-amber-900 bg-amber-50"
-                          : "border-amber-900 bg-white"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <h4 className="font-semibold text-amber-900">
-                            {review.bathroom.name}
-                          </h4>
-                          <p className="text-sm text-gray-600">
-                            {review.bathroom.building}, Floor {review.bathroom.floor}
-                          </p>
-                        </div>
-
-                        <p className="font-semibold text-amber-900">
-                          {review.rating}/5
-                        </p>
-                      </div>
-
-                      {review.description ? (
-                        <p className="mt-3 text-sm text-gray-700">
-                          {review.description}
-                        </p>
-                      ) : (
-                        <p className="mt-3 text-sm italic text-gray-400">
-                          No written review.
-                        </p>
-                      )}
-                    </button>
+                      isSelected={selectedReview?.reviewId === review.id}
+                    />
                   ))}
                 </div>
               )}
