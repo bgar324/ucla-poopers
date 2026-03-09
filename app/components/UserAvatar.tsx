@@ -32,8 +32,8 @@ export default function Avatar({
         style={
           isFallbackImage
             ? {
-                width: Math.round(size * 0.66),
-                height: Math.round(size * 0.66),
+                width: Math.round(size * 0.8),
+                height: Math.round(size * 0.8),
               }
             : {
                 width: "100%",
