@@ -273,7 +273,8 @@ export default function MapPage() {
           {activePanel === "detail" && selectedBathroomId ? (
             <BathroomDetailPanel
               bathroomId={selectedBathroomId}
-              onBackToMap={() => setActivePanel("map")}
+              onBack={() => setActivePanel("map")}
+              backLabel="Back to map"
             />
           ) : (
             <div className="absolute inset-0">

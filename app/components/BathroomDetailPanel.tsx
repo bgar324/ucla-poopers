@@ -29,7 +29,9 @@ interface BathroomDetail {
 
 interface BathroomDetailPanelProps {
   bathroomId: string;
-  onBackToMap: () => void;
+  onBack: () => void;
+  backLabel?: string;
+  variant?: "default" | "embedded";
 }
 
 function OpenCloseBadge({ isOpen }: { isOpen: boolean }) {
@@ -59,11 +61,20 @@ function formatReviewDate(value: string) {
 
 export default function BathroomDetailPanel({
   bathroomId,
-  onBackToMap,
+  onBack,
+  backLabel = "Back",
+  variant = "default",
 }: BathroomDetailPanelProps) {
   const [bathroom, setBathroom] = useState<BathroomDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const isEmbedded = variant === "embedded";
+  const shellClassName = isEmbedded
+    ? "relative z-10 h-full overflow-y-auto pt-6"
+    : "h-full overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.68),_transparent_42%),_#f8f4e6] pt-6";
+  const statusShellClassName = isEmbedded
+    ? "relative z-10 flex h-full items-center justify-center px-6"
+    : "flex h-full items-center justify-center bg-amber-50 px-6";
 
   useEffect(() => {
     let active = true;
@@ -97,7 +108,7 @@ export default function BathroomDetailPanel({
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center bg-amber-50 px-6">
+      <div className={statusShellClassName}>
         <div className="w-full max-w-2xl rounded-[2rem] border border-amber-900/10 bg-rose-100 px-8 py-10 text-center font-rubik text-amber-900 shadow-[0_24px_80px_rgba(120,53,15,0.12)]">
           Loading bathroom...
         </div>
@@ -107,7 +118,7 @@ export default function BathroomDetailPanel({
 
   if (errorMessage || !bathroom) {
     return (
-      <div className="flex h-full items-center justify-center bg-amber-50 px-6">
+      <div className={statusShellClassName}>
         <div className="w-full max-w-2xl rounded-[2rem] border border-red-200 bg-red-50 px-8 py-10 font-rubik text-red-700 shadow-[0_24px_80px_rgba(153,27,27,0.08)]">
           {errorMessage || "Bathroom not found."}
         </div>
@@ -116,14 +127,14 @@ export default function BathroomDetailPanel({
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.68),_transparent_42%),_#f8f4e6] pt-6">
+    <div className={shellClassName}>
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-4 lg:px-10">
         <button
           type="button"
-          onClick={onBackToMap}
+          onClick={onBack}
           className="rounded-full border border-amber-900/30 bg-white/80 px-4 py-2 font-rubik text-sm text-amber-900 transition hover:bg-white cursor-pointer"
         >
-          Back to map
+          {backLabel}
         </button>
 
         <Link
