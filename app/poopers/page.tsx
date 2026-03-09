@@ -330,7 +330,7 @@ export default function PoopersProfilePage() {
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          targetUserId: targetUser.id,
+          followingId: targetUser.id,
         }),
       })
 
