@@ -14,6 +14,7 @@ interface ProfileRecord {
   username: string
   firstName: string
   lastName: string
+  avatarUrl: string | null
   twoFactorEnabled: boolean
 }
 
@@ -179,7 +180,7 @@ export default function PoopersProfilePage() {
       username: profile.username,
       firstName: profile.firstName,
       lastName: profile.lastName,
-      avatarUrl: null,
+      avatarUrl: profile.avatarUrl,
       reviewCount: reviews.filter((review) => review.user.username === profile.username).length,
     })
   }, [profile, users, selectedUser, reviews])
@@ -192,7 +193,7 @@ export default function PoopersProfilePage() {
           username: profile.username,
           firstName: profile.firstName,
           lastName: profile.lastName,
-          avatarUrl: null,
+          avatarUrl: profile.avatarUrl,
           reviewCount: reviews.filter((review) => review.user.username === profile.username).length,
         }
       : null)
@@ -230,7 +231,10 @@ export default function PoopersProfilePage() {
            <div className="flex flex-col items-center text-center space-y-2">
     
                 {/* Avatar */}
-                <Avatar size={220} />
+                <Avatar
+                  size={220}
+                  src={displayedUser?.avatarUrl ?? undefined}
+                />
 
                 {/* Username */}
                 <h2 className="text-2xl font-semibold mt-2">

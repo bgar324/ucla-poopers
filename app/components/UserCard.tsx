@@ -1,11 +1,14 @@
 "use client"
 
+import Avatar from "../components/UserAvatar"
+
 interface UserItem {
   id: string
   firstName: string
   lastName: string
   username: string
   reviewCount: number
+  avatarUrl: string | null
 }
 
 interface UserCardProps {
@@ -28,18 +31,27 @@ export default function UserCard({
         isSelected ? "bg-amber-50 shadow-md" : "bg-rose-50"
       }`}
     >
-      <p className="font-rubik font-medium text-amber-900">
-        {user.firstName} {user.lastName}
-      </p>
+      <div className="flex items-center gap-4">
+        <Avatar
+          size={56}
+          src={user.avatarUrl ?? undefined}
+        />
 
-      <p className="mt-1 font-rubik text-sm text-gray-600">
-        @{user.username}
-      </p>
+        <div className="flex-1">
+          <p className="font-rubik font-medium text-amber-900">
+            {user.firstName} {user.lastName}
+          </p>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        <span className="rounded-full bg-amber-100 px-2 py-1 font-rubik text-xs text-amber-900">
-          {user.reviewCount} review{user.reviewCount === 1 ? "" : "s"}
-        </span>
+          <p className="mt-1 font-rubik text-sm text-gray-600">
+            @{user.username}
+          </p>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="rounded-full bg-amber-100 px-2 py-1 font-rubik text-xs text-amber-900">
+              {user.reviewCount} review{user.reviewCount === 1 ? "" : "s"}
+            </span>
+          </div>
+        </div>
       </div>
     </button>
   )
