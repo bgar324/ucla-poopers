@@ -49,6 +49,7 @@ model Review {
   rating      Int
   description String
   created_at  DateTime @default(now())
+  edited_at   DateTime?
 
   bathroom Bathroom @relation(fields: [bathroom_id], references: [id])
   user     User     @relation(fields: [user_id], references: [id])

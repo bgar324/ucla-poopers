@@ -16,6 +16,67 @@ function formatBathroomType(type: string): string {
   }
 }
 
+async function refreshBathroomSummary(bathroomId: string) {
+  const bathroomForSummary = await prisma.bathroom.findUnique({
+    where: { id: bathroomId },
+    select: {
+      id: true,
+      name: true,
+      building: true,
+      floor: true,
+      type: true,
+      reviews: {
+        orderBy: { created_at: "desc" },
+        select: {
+          rating: true,
+          description: true,
+        },
+      },
+    },
+  });
+
+  if (!bathroomForSummary) {
+    return;
+  }
+
+  const reviewCount = bathroomForSummary.reviews.length;
+
+  if (reviewCount >= MIN_REVIEWS_FOR_AI_SUMMARY) {
+    const summary = await generateBathroomSummary({
+      bathroomName: bathroomForSummary.name,
+      building: bathroomForSummary.building,
+      floor: bathroomForSummary.floor,
+      typeLabel: formatBathroomType(bathroomForSummary.type),
+      reviews: bathroomForSummary.reviews,
+    });
+
+    await prisma.bathroom.update({
+      where: { id: bathroomForSummary.id },
+      data: summary
+        ? {
+            reviewSummary: summary,
+            reviewSummaryReviewCount: reviewCount,
+            reviewSummaryUpdatedAt: new Date(),
+          }
+        : {
+            reviewSummary: null,
+            reviewSummaryReviewCount: null,
+            reviewSummaryUpdatedAt: null,
+          },
+    });
+    return;
+  }
+
+  await prisma.bathroom.update({
+    where: { id: bathroomForSummary.id },
+    data: {
+      reviewSummary: null,
+      reviewSummaryReviewCount: null,
+      reviewSummaryUpdatedAt: null,
+    },
+  });
+}
+
 //add review to existing bathroom or create a new one
 export async function POST(req: NextRequest) {
   try {
@@ -99,61 +160,7 @@ export async function POST(req: NextRequest) {
     });
 
     try {
-      const bathroomForSummary = await prisma.bathroom.findUnique({
-        where: { id: targetBathroom.id },
-        select: {
-          id: true,
-          name: true,
-          building: true,
-          floor: true,
-          type: true,
-          reviews: {
-            orderBy: { created_at: "desc" },
-            select: {
-              rating: true,
-              description: true,
-            },
-          },
-        },
-      });
-
-      if (bathroomForSummary) {
-        const reviewCount = bathroomForSummary.reviews.length;
-
-        if (reviewCount >= MIN_REVIEWS_FOR_AI_SUMMARY) {
-          const summary = await generateBathroomSummary({
-            bathroomName: bathroomForSummary.name,
-            building: bathroomForSummary.building,
-            floor: bathroomForSummary.floor,
-            typeLabel: formatBathroomType(bathroomForSummary.type),
-            reviews: bathroomForSummary.reviews,
-          });
-
-          await prisma.bathroom.update({
-            where: { id: bathroomForSummary.id },
-            data: summary
-              ? {
-                  reviewSummary: summary,
-                  reviewSummaryReviewCount: reviewCount,
-                  reviewSummaryUpdatedAt: new Date(),
-                }
-              : {
-                  reviewSummary: null,
-                  reviewSummaryReviewCount: null,
-                  reviewSummaryUpdatedAt: null,
-                },
-          });
-        } else {
-          await prisma.bathroom.update({
-            where: { id: bathroomForSummary.id },
-            data: {
-              reviewSummary: null,
-              reviewSummaryReviewCount: null,
-              reviewSummaryUpdatedAt: null,
-            },
-          });
-        }
-      }
+      await refreshBathroomSummary(targetBathroom.id);
     } catch (summaryError) {
       console.error("REVIEW SUMMARY REFRESH ERROR:", summaryError);
     }
@@ -180,6 +187,143 @@ export async function POST(req: NextRequest) {
 
     console.error("ADD REVIEW ERROR:", err);
     return NextResponse.json({ error: "Failed to add review" }, { status: 500 });
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { supabaseAuthId, reviewId, bathroomId, review } = body as {
+      supabaseAuthId?: string;
+      reviewId?: string;
+      bathroomId?: string;
+      review?: {
+        rating?: number;
+        description?: string;
+      };
+    };
+
+    if (!supabaseAuthId || !review || typeof review.rating !== "number") {
+      return NextResponse.json(
+        { error: "Missing required fields (supabaseAuthId, review.rating)." },
+        { status: 400 },
+      );
+    }
+
+    if (!reviewId && !bathroomId) {
+      return NextResponse.json(
+        { error: "Provide either reviewId or bathroomId." },
+        { status: 400 },
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { supabaseAuthId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const existingReview = await prisma.review.findFirst({
+      where: {
+        user_id: user.id,
+        ...(reviewId ? { id: reviewId } : { bathroom_id: bathroomId }),
+      },
+      select: {
+        id: true,
+        bathroom_id: true,
+      },
+    });
+
+    if (!existingReview) {
+      return NextResponse.json({ error: "Review not found." }, { status: 404 });
+    }
+
+    const updatedReview = await prisma.review.update({
+      where: { id: existingReview.id },
+      data: {
+        rating: Number(review.rating),
+        description: review.description ?? "",
+        edited_at: new Date(),
+      },
+    });
+
+    try {
+      await refreshBathroomSummary(existingReview.bathroom_id);
+    } catch (summaryError) {
+      console.error("REVIEW SUMMARY REFRESH ERROR:", summaryError);
+    }
+
+    return NextResponse.json({ review: updatedReview });
+  } catch (err: unknown) {
+    console.error("UPDATE REVIEW ERROR:", err);
+    return NextResponse.json({ error: "Failed to update review" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { supabaseAuthId, reviewId, bathroomId } = body as {
+      supabaseAuthId?: string;
+      reviewId?: string;
+      bathroomId?: string;
+    };
+
+    if (!supabaseAuthId) {
+      return NextResponse.json(
+        { error: "Missing required field (supabaseAuthId)." },
+        { status: 400 },
+      );
+    }
+
+    if (!reviewId && !bathroomId) {
+      return NextResponse.json(
+        { error: "Provide either reviewId or bathroomId." },
+        { status: 400 },
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { supabaseAuthId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const existingReview = await prisma.review.findFirst({
+      where: {
+        user_id: user.id,
+        ...(reviewId ? { id: reviewId } : { bathroom_id: bathroomId }),
+      },
+      select: {
+        id: true,
+        bathroom_id: true,
+      },
+    });
+
+    if (!existingReview) {
+      return NextResponse.json({ error: "Review not found." }, { status: 404 });
+    }
+
+    await prisma.review.delete({
+      where: { id: existingReview.id },
+    });
+
+    try {
+      await refreshBathroomSummary(existingReview.bathroom_id);
+    } catch (summaryError) {
+      console.error("REVIEW SUMMARY REFRESH ERROR:", summaryError);
+    }
+
+    return NextResponse.json({ success: true, reviewId: existingReview.id });
+  } catch (err: unknown) {
+    console.error("DELETE REVIEW ERROR:", err);
+    return NextResponse.json({ error: "Failed to delete review" }, { status: 500 });
   }
 }
 

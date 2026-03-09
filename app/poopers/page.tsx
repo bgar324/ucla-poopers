@@ -6,9 +6,11 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import Avatar from "../components/UserAvatar"
 import UserCard from "../components/UserCard"
 import BathroomDetailPanel from "../components/BathroomDetailPanel"
+import ConfirmActionModal from "../components/ConfirmActionModal"
 import SpotCard from "../components/SpotCard"
 import supabase from "@/supabaseClient"
 import { useRouter } from "next/navigation"
+import { Pencil, Trash2 } from "lucide-react"
 
 interface ProfileRecord {
   id: string
@@ -60,7 +62,11 @@ export default function PoopersProfilePage() {
   const [selectedReview, setSelectedReview] = useState<{
     reviewId: string
     bathroomId: string
+    initialEditingReviewId?: string | null
+    editorRequestKey?: number
   } | null>(null)
+  const [reviewPendingDelete, setReviewPendingDelete] = useState<ReviewRecord | null>(null)
+  const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null)
   const [isLoadingReviews, setIsLoadingReviews] = useState(true)
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [isLoadingFollowing, setIsLoadingFollowing] = useState(true)
@@ -145,37 +151,24 @@ export default function PoopersProfilePage() {
     }
   }, [router])
 
-  useEffect(() => {
-    let active = true
+  const loadReviews = useCallback(async () => {
+    setIsLoadingReviews(true)
 
-    const loadReviews = async () => {
-      setIsLoadingReviews(true)
+    const response = await fetch("/api/reviews")
 
-      const response = await fetch("/api/reviews")
-
-      if (!response.ok) {
-        if (active) {
-          setIsLoadingReviews(false)
-        }
-        return
-      }
-
-      const data = (await response.json()) as { reviews: ReviewRecord[] }
-
-      if (!active) {
-        return
-      }
-
-      setReviews(data.reviews)
+    if (!response.ok) {
       setIsLoadingReviews(false)
+      return
     }
 
-    void loadReviews()
-
-    return () => {
-      active = false
-    }
+    const data = (await response.json()) as { reviews: ReviewRecord[] }
+    setReviews(data.reviews)
+    setIsLoadingReviews(false)
   }, [])
+
+  useEffect(() => {
+    void loadReviews()
+  }, [loadReviews])
 
   useEffect(() => {
     let active = true
@@ -252,6 +245,7 @@ export default function PoopersProfilePage() {
     displayedUser
       ? reviews.filter((review) => review.user.username === displayedUser.username)
       : []
+  const displayedUserReviewCount = displayedUserReviews.length
 
   const reviewCountsByBathroom = reviews.reduce<Record<string, number>>((counts, review) => {
     counts[review.bathroom.id] = (counts[review.bathroom.id] ?? 0) + 1
@@ -369,8 +363,76 @@ export default function PoopersProfilePage() {
     [followedUserIds, getAccessToken, router],
   )
 
+  const handleDeleteReview = useCallback(
+    async () => {
+      if (!reviewPendingDelete) {
+        return
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session?.user?.id) {
+        router.replace("/")
+        return
+      }
+
+      setDeletingReviewId(reviewPendingDelete.id)
+
+      try {
+        const response = await fetch("/api/reviews", {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            supabaseAuthId: session.user.id,
+            reviewId: reviewPendingDelete.id,
+            bathroomId: reviewPendingDelete.bathroom.id,
+          }),
+        })
+
+        const result = await response.json().catch(() => null)
+
+        if (!response.ok) {
+          console.error("delete review failed", response.status, result)
+          return
+        }
+
+        setSelectedReview((current) =>
+          current?.reviewId === reviewPendingDelete.id ? null : current
+        )
+        setReviewPendingDelete(null)
+        await loadReviews()
+      } finally {
+        setDeletingReviewId(null)
+      }
+    },
+    [loadReviews, reviewPendingDelete, router],
+  )
+
   return (
     <main className="h-screen overflow-hidden">
+      <ConfirmActionModal
+        isOpen={Boolean(reviewPendingDelete)}
+        title="Delete this review?"
+        description={
+          reviewPendingDelete
+            ? `This removes your review from ${reviewPendingDelete.bathroom.name}. This action cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete review"
+        cancelLabel="Keep review"
+        isConfirming={Boolean(deletingReviewId)}
+        onCancel={() => {
+          if (!deletingReviewId) {
+            setReviewPendingDelete(null)
+          }
+        }}
+        onConfirm={() => void handleDeleteReview()}
+      />
+
       <Navbar />
 
       <div className="grid grid-cols-1 md:grid-cols-3 h-[calc(100vh-80px)]">
@@ -391,7 +453,7 @@ export default function PoopersProfilePage() {
 
             {displayedUser ? (
               <p className="text-sm text-gray-500">
-                {displayedUser.reviewCount} review{displayedUser.reviewCount === 1 ? "" : "s"}
+                {displayedUserReviewCount} review{displayedUserReviewCount === 1 ? "" : "s"}
               </p>
             ) : null}
           </div>
@@ -408,32 +470,65 @@ export default function PoopersProfilePage() {
             ) : (
               <div className="space-y-4">
                 {displayedUserReviews.map((review) => (
-                  <SpotCard
-                    key={review.id}
-                    spot={{
-                      id: review.bathroom.id,
-                      rating: review.rating,
-                      name: review.bathroom.name,
-                      detail: review.description || "No written review.",
-                      reviewCount: reviewCountsByBathroom[review.bathroom.id] ?? 0,
-                      isOpen: review.bathroom.isOpen,
-                      typeLabel:
-                        review.bathroom.type === "accessible"
-                          ? "Accessible"
-                          : review.bathroom.type === "female"
-                            ? "Female"
-                            : review.bathroom.type === "male"
-                              ? "Male"
-                              : "Gender Neutral",
-                    }}
-                    onClick={() =>
-                      setSelectedReview({
-                        reviewId: review.id,
-                        bathroomId: review.bathroom.id,
-                      })
-                    }
-                    isSelected={selectedReview?.reviewId === review.id}
-                  />
+                  <div key={review.id} className="relative">
+                    {profile?.id === displayedUser?.id ? (
+                      <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedReview({
+                              reviewId: review.id,
+                              bathroomId: review.bathroom.id,
+                              initialEditingReviewId: review.id,
+                              editorRequestKey: Date.now(),
+                            })
+                          }
+                          className="rounded-full border border-amber-900/20 bg-white/90 p-2 text-amber-900 transition hover:bg-rose-50"
+                          aria-label="Edit this review"
+                        >
+                          <Pencil size={14} strokeWidth={2} />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setReviewPendingDelete(review)}
+                          disabled={deletingReviewId === review.id}
+                          className="rounded-full border border-red-200 bg-white/90 p-2 text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          aria-label="Delete this review"
+                        >
+                          <Trash2 size={14} strokeWidth={2} />
+                        </button>
+                      </div>
+                    ) : null}
+
+                    <SpotCard
+                      spot={{
+                        id: review.bathroom.id,
+                        rating: review.rating,
+                        name: review.bathroom.name,
+                        detail: review.description || "No written review.",
+                        reviewCount: reviewCountsByBathroom[review.bathroom.id] ?? 0,
+                        isOpen: review.bathroom.isOpen,
+                        typeLabel:
+                          review.bathroom.type === "accessible"
+                            ? "Accessible"
+                            : review.bathroom.type === "female"
+                              ? "Female"
+                              : review.bathroom.type === "male"
+                                ? "Male"
+                                : "Gender Neutral",
+                      }}
+                      onClick={() =>
+                        setSelectedReview({
+                          reviewId: review.id,
+                          bathroomId: review.bathroom.id,
+                          initialEditingReviewId: null,
+                          editorRequestKey: 0,
+                        })
+                      }
+                      isSelected={selectedReview?.reviewId === review.id}
+                    />
+                  </div>
                 ))}
               </div>
             )}
@@ -449,6 +544,9 @@ export default function PoopersProfilePage() {
               onBack={() => setSelectedReview(null)}
               backLabel="Back to poopers"
               variant="embedded"
+              initialEditingReviewId={selectedReview.initialEditingReviewId ?? null}
+              editorRequestKey={selectedReview.editorRequestKey ?? 0}
+              onReviewSaved={loadReviews}
             />
           ) : (
             <div className="relative z-10 h-full overflow-y-auto p-6">

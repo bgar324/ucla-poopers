@@ -57,8 +57,10 @@ export async function GET(
             rating: true,
             description: true,
             created_at: true,
+            edited_at: true,
             user: {
               select: {
+                id: true,
                 username: true,
                 avatarUrl: true,
               },
@@ -146,6 +148,8 @@ export async function GET(
           rating: review.rating,
           description: review.description,
           createdAt: review.created_at,
+          editedAt: review.edited_at,
+          userId: review.user?.id ?? null,
           username: review.user?.username ?? "Anonymous",
           avatarUrl: review.user?.avatarUrl ?? null,
         })),

@@ -62,7 +62,7 @@ export default function SpotCard({
   onClick,
   isSelected = false,
 }: SpotCardProps) {
-  const className = `block w-full rounded-xl border border-amber-900 p-4 text-left shadow-sm transition hover:shadow-md ${
+  const className = `block w-full rounded-xl border border-amber-900 p-4 text-left shadow-sm transition hover:shadow-md cursor-pointer ${
     isSelected ? "bg-amber-50 shadow-md" : "bg-rose-50"
   }`
 

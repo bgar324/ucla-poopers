@@ -14,9 +14,9 @@ export default function Navbar() {
 
   return (
     <nav className="w-full h-20 flex items-center justify-between px-6 bg-rose-100 shadow-md relative z-50">
-      <div className="font-gasoek text-3xl text-amber-900">
+      <Link className="font-gasoek text-3xl text-amber-900" href = "/dashboard">
         PARTY POOPERS
-      </div>
+      </Link>
 
       <div className="font-rubik text-md text-amber-900 flex gap-8">
         {navItems.map((item) => {

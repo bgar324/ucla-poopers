@@ -1,33 +1,103 @@
-function PoopRatingIcon({ filled }: { filled: boolean }) {
+"use client";
+
+import { useId } from "react";
+
+interface PoopRatingIconProps {
+  fillFraction: number;
+}
+
+interface RatingProps {
+  value: number;
+  interactive?: boolean;
+  onChange?: (value: number) => void;
+}
+
+function clampFill(value: number) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function PoopRatingIcon({ fillFraction }: PoopRatingIconProps) {
+  const clipPathId = useId();
+  const fillWidth = `${clampFill(fillFraction) * 100}%`;
+
   return (
     <svg
       viewBox="-7 -7 210 210"
       xmlns="http://www.w3.org/2000/svg"
-      className={`w-6 h-6 stroke-6 ${
-        filled ? "fill-amber-900 stroke-black" : "fill-none"
-      } stroke-black`}
+      className="h-6 w-6 stroke-6"
     >
-      <path d="M181.32,118.14c1.413-3.498,2.154-7.265,2.154-11.129c0-14.286-10.129-26.25-23.582-29.092
-      c0.419-2.386,0.663-4.808,0.729-7.255l0.009-0.283c0.012-0.357,0.022-0.713,0.022-1.073
-      c0-0.358-0.011-0.714-0.022-1.071l-0.009-0.276c-0.348-12.914-5.636-25-14.893-34.029
-      c-9.276-9.05-21.523-14.034-34.485-14.034c-4.142,0-7.5,3.358-7.5,7.5
-      s3.358,7.5,7.5,7.5c1.289,0,2.337,1.049,2.337,2.338
-      c0,1.29-1.049,2.34-2.338,2.34H68.832c-16.394,0-29.731,13.338-29.731,29.732
-      c0,2.872,0.408,5.689,1.196,8.379c-14.057,2.355-24.803,14.608-24.803,29.323
-      c0,3.864,0.741,7.631,2.153,11.128C7.103,123.491,0,134.448,0,146.865
-      c0,17.757,14.446,32.203,32.202,32.203h134.563
-      c17.756,0,32.202-14.446,32.202-32.203
-      C198.967,134.45,191.863,123.493,181.32,118.14z" />
+      <defs>
+        <clipPath id={clipPathId}>
+          <rect x="0" y="0" width={fillWidth} height="100%" />
+        </clipPath>
+      </defs>
+
+      <path
+        d="M181.32,118.14c1.413-3.498,2.154-7.265,2.154-11.129c0-14.286-10.129-26.25-23.582-29.092
+        c0.419-2.386,0.663-4.808,0.729-7.255l0.009-0.283c0.012-0.357,0.022-0.713,0.022-1.073
+        c0-0.358-0.011-0.714-0.022-1.071l-0.009-0.276c-0.348-12.914-5.636-25-14.893-34.029
+        c-9.276-9.05-21.523-14.034-34.485-14.034c-4.142,0-7.5,3.358-7.5,7.5
+        s3.358,7.5,7.5,7.5c1.289,0,2.337,1.049,2.337,2.338
+        c0,1.29-1.049,2.34-2.338,2.34H68.832c-16.394,0-29.731,13.338-29.731,29.732
+        c0,2.872,0.408,5.689,1.196,8.379c-14.057,2.355-24.803,14.608-24.803,29.323
+        c0,3.864,0.741,7.631,2.153,11.128C7.103,123.491,0,134.448,0,146.865
+        c0,17.757,14.446,32.203,32.202,32.203h134.563
+        c17.756,0,32.202-14.446,32.202-32.203
+        C198.967,134.45,191.863,123.493,181.32,118.14z"
+        fill="none"
+        stroke="black"
+      />
+
+      <path
+        d="M181.32,118.14c1.413-3.498,2.154-7.265,2.154-11.129c0-14.286-10.129-26.25-23.582-29.092
+        c0.419-2.386,0.663-4.808,0.729-7.255l0.009-0.283c0.012-0.357,0.022-0.713,0.022-1.073
+        c0-0.358-0.011-0.714-0.022-1.071l-0.009-0.276c-0.348-12.914-5.636-25-14.893-34.029
+        c-9.276-9.05-21.523-14.034-34.485-14.034c-4.142,0-7.5,3.358-7.5,7.5
+        s3.358,7.5,7.5,7.5c1.289,0,2.337,1.049,2.337,2.338
+        c0,1.29-1.049,2.34-2.338,2.34H68.832c-16.394,0-29.731,13.338-29.731,29.732
+        c0,2.872,0.408,5.689,1.196,8.379c-14.057,2.355-24.803,14.608-24.803,29.323
+        c0,3.864,0.741,7.631,2.153,11.128C7.103,123.491,0,134.448,0,146.865
+        c0,17.757,14.446,32.203,32.202,32.203h134.563
+        c17.756,0,32.202-14.446,32.202-32.203
+        C198.967,134.45,191.863,123.493,181.32,118.14z"
+        fill="#92400e"
+        stroke="none"
+        clipPath={`url(#${clipPathId})`}
+      />
     </svg>
   );
 }
 
-export default function Rating({ value }: { value: number }) {
+export default function Rating({
+  value,
+  interactive = false,
+  onChange,
+}: RatingProps) {
   return (
     <div className="flex gap-1">
-      {[1, 2, 3, 4, 5].map((num) => (
-        <PoopRatingIcon key={num} filled={num <= value} />
-      ))}
+      {[1, 2, 3, 4, 5].map((num) => {
+        const fillFraction = clampFill(value - (num - 1));
+
+        if (!interactive) {
+          return (
+            <span key={num} className="inline-flex">
+              <PoopRatingIcon fillFraction={fillFraction} />
+            </span>
+          );
+        }
+
+        return (
+          <div key={num} className="relative h-6 w-6">
+            <PoopRatingIcon fillFraction={fillFraction} />
+            <button
+              type="button"
+              aria-label={`Rate ${num} out of 5`}
+              className="absolute inset-0 cursor-pointer"
+              onClick={() => onChange?.(num)}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

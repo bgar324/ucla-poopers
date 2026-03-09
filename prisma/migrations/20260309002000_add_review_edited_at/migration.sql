@@ -1,0 +1,2 @@
+ALTER TABLE "Review"
+ADD COLUMN "edited_at" TIMESTAMP(3);

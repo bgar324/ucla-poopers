@@ -1,18 +1,21 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
+import supabase from "@/supabaseClient";
+import ConfirmActionModal from "./ConfirmActionModal";
 import Rating from "./Rating";
 import UserAvatar from "./UserAvatar";
-import { CirclePlus, Plus } from "lucide-react";
 
 interface BathroomReview {
   id: string;
   rating: number;
   description: string;
   username: string;
+  userId: string | null;
   avatarUrl?: string | null;
   createdAt: string;
+  editedAt?: string | null;
 }
 
 interface BathroomDetail {
@@ -28,23 +31,36 @@ interface BathroomDetail {
   reviews: BathroomReview[];
 }
 
+interface ProfileRecord {
+  id: string;
+  username: string;
+  avatarUrl: string | null;
+}
+
 interface BathroomDetailPanelProps {
   bathroomId: string;
   onBack: () => void;
   backLabel?: string;
   variant?: "default" | "embedded";
+  initialEditingReviewId?: string | null;
+  editorRequestKey?: number;
+  onReviewSaved?: () => void;
 }
 
 function OpenCloseBadge({ isOpen }: { isOpen: boolean }) {
   return (
     <p
       className={`inline-flex items-center rounded-full px-3 py-1 font-rubik text-xs font-medium uppercase tracking-wider ${
-        isOpen 
-          ? "bg-green-500/10 text-green-700 border border-green-200" 
-          : "bg-red-500/10 text-red-700 border border-red-200"
+        isOpen
+          ? "border border-green-200 bg-green-500/10 text-green-700"
+          : "border border-red-200 bg-red-500/10 text-red-700"
       }`}
     >
-      <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${isOpen ? "bg-green-500" : "bg-red-500"}`} />
+      <span
+        className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+          isOpen ? "bg-green-500" : "bg-red-500"
+        }`}
+      />
       {isOpen ? "Open now" : "Closed"}
     </p>
   );
@@ -60,15 +76,58 @@ function formatReviewDate(value: string) {
   }).format(date);
 }
 
+function formatRatingLabel(value: number) {
+  return Number.isInteger(value) ? `${value}` : value.toFixed(1);
+}
+
+async function fetchBathroomDetail(bathroomId: string) {
+  const response = await fetch(`/api/bathrooms/${bathroomId}`, {
+    cache: "no-store",
+  });
+  const data = (await response.json().catch(() => null)) as
+    | { bathroom?: BathroomDetail; error?: string }
+    | null;
+
+  if (!response.ok || !data?.bathroom) {
+    throw new Error(data?.error ?? "Failed to load bathroom.");
+  }
+
+  return data.bathroom;
+}
+
 export default function BathroomDetailPanel({
   bathroomId,
   onBack,
   backLabel = "Back",
   variant = "default",
+  initialEditingReviewId = null,
+  editorRequestKey = 0,
+  onReviewSaved,
 }: BathroomDetailPanelProps) {
   const [bathroom, setBathroom] = useState<BathroomDetail | null>(null);
+  const [viewer, setViewer] = useState<{
+    id: string;
+    supabaseAuthId: string;
+    username: string;
+    avatarUrl: string | null;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isWritingReview, setIsWritingReview] = useState(false);
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [existingRatingForEdit, setExistingRatingForEdit] = useState<number | null>(
+    null,
+  );
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
+  const [reviewDescription, setReviewDescription] = useState("");
+  const [reviewError, setReviewError] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null);
+  const [reviewPendingDelete, setReviewPendingDelete] =
+    useState<BathroomReview | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const lastAutoOpenRequestRef = useRef<string | null>(null);
+
   const isEmbedded = variant === "embedded";
   const shellClassName = isEmbedded
     ? "relative z-10 h-full overflow-y-auto pt-6"
@@ -76,9 +135,66 @@ export default function BathroomDetailPanel({
   const statusShellClassName = isEmbedded
     ? "relative z-10 flex h-full items-center justify-center px-6"
     : "flex h-full items-center justify-center bg-amber-50 px-6";
-  const [isWritingReview, setIsWritingReview] = useState(false);
-  const [reviewDescription, setReviewDescription] = useState("");
-  const textareaRef = useRef(null);
+  const viewerReview =
+    bathroom && viewer
+      ? bathroom.reviews.find((review) => review.userId === viewer.id) ?? null
+      : null;
+
+  useEffect(() => {
+    let active = true;
+
+    const loadViewer = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!active || !session?.access_token || !session.user?.id) {
+        return;
+      }
+
+      const response = await fetch("/api/profile", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (!active) {
+        return;
+      }
+
+      if (!response.ok) {
+        setViewer({
+          id: "",
+          supabaseAuthId: session.user.id,
+          username: "You",
+          avatarUrl:
+            typeof session.user.user_metadata?.avatar_url === "string"
+              ? session.user.user_metadata.avatar_url
+              : null,
+        });
+        return;
+      }
+
+      const data = (await response.json()) as { user: ProfileRecord };
+
+      if (!active) {
+        return;
+      }
+
+      setViewer({
+        id: data.user.id,
+        supabaseAuthId: session.user.id,
+        username: data.user.username,
+        avatarUrl: data.user.avatarUrl,
+      });
+    };
+
+    void loadViewer();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -87,28 +203,184 @@ export default function BathroomDetailPanel({
 
     const loadBathroom = async () => {
       try {
-        const response = await fetch(`/api/bathrooms/${bathroomId}`);
-        const data = (await response.json().catch(() => null)) as
-          | { bathroom?: BathroomDetail; error?: string }
-          | null;
-
+        const nextBathroom = await fetchBathroomDetail(bathroomId);
         if (!active) return;
-        if (!response.ok || !data?.bathroom) {
-          throw new Error(data?.error ?? "Failed to load bathroom.");
-        }
-        setBathroom(data.bathroom);
+        setBathroom(nextBathroom);
       } catch (error) {
         if (!active) return;
         setBathroom(null);
-        setErrorMessage(error instanceof Error ? error.message : "Failed to load bathroom.");
+        setErrorMessage(
+          error instanceof Error ? error.message : "Failed to load bathroom.",
+        );
       } finally {
         if (active) setIsLoading(false);
       }
     };
 
     void loadBathroom();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [bathroomId]);
+
+  useEffect(() => {
+    if (!bathroom || !initialEditingReviewId) {
+      return;
+    }
+
+    const requestSignature = `${bathroomId}:${initialEditingReviewId}:${editorRequestKey}`;
+
+    if (lastAutoOpenRequestRef.current === requestSignature) {
+      return;
+    }
+
+    const reviewToEdit = bathroom.reviews.find(
+      (review) => review.id === initialEditingReviewId,
+    );
+
+    if (!reviewToEdit) {
+      return;
+    }
+
+    lastAutoOpenRequestRef.current = requestSignature;
+    setReviewError("");
+    setIsWritingReview(true);
+    setEditingReviewId(reviewToEdit.id);
+    setExistingRatingForEdit(reviewToEdit.rating);
+    setSelectedRating(0);
+    setReviewDescription(reviewToEdit.description);
+    setTimeout(() => textareaRef.current?.focus(), 100);
+  }, [bathroom, initialEditingReviewId, editorRequestKey]);
+
+  const openComposer = (reviewToEdit?: BathroomReview | null) => {
+    setReviewError("");
+    setIsWritingReview(true);
+    setEditingReviewId(reviewToEdit?.id ?? null);
+    setExistingRatingForEdit(reviewToEdit?.rating ?? null);
+    setSelectedRating(0);
+    setReviewDescription(reviewToEdit?.description ?? "");
+    setTimeout(() => textareaRef.current?.focus(), 100);
+  };
+
+  const closeComposer = () => {
+    setIsWritingReview(false);
+    setEditingReviewId(null);
+    setExistingRatingForEdit(null);
+    setSelectedRating(0);
+    setReviewDescription("");
+    setReviewError("");
+  };
+
+  const handleSubmitReview = async () => {
+    if (!viewer?.supabaseAuthId) {
+      setReviewError("Sign in to post a review.");
+      return;
+    }
+
+    const ratingToSubmit =
+      selectedRating || (editingReviewId ? existingRatingForEdit ?? 0 : 0);
+
+    if (!ratingToSubmit) {
+      setReviewError("Select a rating.");
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    setReviewError("");
+
+    try {
+      const response = await fetch("/api/reviews", {
+        method: editingReviewId ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          supabaseAuthId: viewer.supabaseAuthId,
+          bathroomId,
+          reviewId: editingReviewId,
+          review: {
+            rating: ratingToSubmit,
+            description: reviewDescription.trim(),
+          },
+        }),
+      });
+
+      const data = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Failed to save review.");
+      }
+
+      const refreshedBathroom = await fetchBathroomDetail(bathroomId);
+      setBathroom(refreshedBathroom);
+      closeComposer();
+      onReviewSaved?.();
+    } catch (error) {
+      setReviewError(
+        error instanceof Error ? error.message : "Failed to save review.",
+      );
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  const handleDeleteReview = async () => {
+    if (!reviewPendingDelete) {
+      return;
+    }
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.user?.id) {
+      setReviewError("Sign in to delete a review.");
+      return;
+    }
+
+    setDeletingReviewId(reviewPendingDelete.id);
+    setReviewError("");
+
+    try {
+      const response = await fetch("/api/reviews", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          supabaseAuthId: session.user.id,
+          reviewId: reviewPendingDelete.id,
+          bathroomId,
+        }),
+      });
+
+      const data = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Failed to delete review.");
+      }
+
+      const refreshedBathroom = await fetchBathroomDetail(bathroomId);
+      setBathroom(refreshedBathroom);
+
+      if (editingReviewId === reviewPendingDelete.id) {
+        closeComposer();
+      }
+
+      setReviewPendingDelete(null);
+      onReviewSaved?.();
+    } catch (error) {
+      setReviewError(
+        error instanceof Error ? error.message : "Failed to delete review.",
+      );
+    } finally {
+      setDeletingReviewId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -132,21 +404,33 @@ export default function BathroomDetailPanel({
 
   return (
     <div className={shellClassName}>
+      <ConfirmActionModal
+        isOpen={Boolean(reviewPendingDelete)}
+        title="Delete this review?"
+        description={
+          reviewPendingDelete
+            ? `This removes your review from ${bathroom.name}. This action cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete review"
+        cancelLabel="Keep review"
+        isConfirming={Boolean(deletingReviewId)}
+        onCancel={() => {
+          if (!deletingReviewId) {
+            setReviewPendingDelete(null);
+          }
+        }}
+        onConfirm={() => void handleDeleteReview()}
+      />
+
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-4 lg:px-10">
         <button
           type="button"
           onClick={onBack}
-          className="rounded-full border border-amber-900/30 bg-white/80 px-4 py-2 font-rubik text-sm text-amber-900 transition hover:bg-white cursor-pointer"
+          className="cursor-pointer rounded-full border border-amber-900/30 bg-white/80 px-4 py-2 font-rubik text-sm text-amber-900 transition hover:bg-white"
         >
           {backLabel}
         </button>
-
-        {/* <Link
-          href={`/add-review?bathroomId=${bathroom.id}`}
-          className="rounded-full bg-amber-900 px-4 py-2 font-rubik text-sm font-medium text-white transition hover:bg-amber-800"
-        >
-          Add review
-        </Link> */}
       </div>
 
       <div className="mx-auto w-full max-w-5xl px-6 py-8 lg:px-10 lg:py-10">
@@ -160,7 +444,7 @@ export default function BathroomDetailPanel({
                 <OpenCloseBadge isOpen={bathroom.isOpen} />
               </div>
             </div>
-            
+
             <p className="mt-4 font-rubik text-xl text-slate-600">
               {bathroom.building} • Floor {bathroom.floor} • {bathroom.typeLabel}
             </p>
@@ -197,73 +481,112 @@ export default function BathroomDetailPanel({
         <section className="mt-8">
           <div className="flex flex-wrap items-end justify-between gap-4 px-4">
             <div className="flex items-center gap-3">
-            <h2 className="font-rubik text-3xl font-semibold text-amber-900">
-              Reviews
-            </h2>
-            <button 
-            onClick={() => 
-              {setIsWritingReview(!isWritingReview);
-               setTimeout(() => textareaRef.current?.focus(), 100);}}
-            className="flex items-center gap-2 p-2 rounded-full border border-amber-900/20 text-amber-900 shadow-sm transition hover:bg-rose-50 hover:cursor-pointer hover:shadow-md">
-              <Plus size={16} strokeWidth={2}/>
-            </button>
-          </div>
+              <h2 className="font-rubik text-3xl font-semibold text-amber-900">
+                Reviews
+              </h2>
+              <button
+                type="button"
+                onClick={() => {
+                  if (isWritingReview) {
+                    closeComposer();
+                    return;
+                  }
+
+                  openComposer(viewerReview);
+                }}
+                className="flex cursor-pointer items-center gap-2 rounded-full border border-amber-900/20 p-2 text-amber-900 shadow-sm transition hover:bg-rose-50 hover:shadow-md"
+                aria-label={viewerReview ? "Edit your review" : "Add a review"}
+              >
+                {viewerReview ? (
+                  <Pencil size={16} strokeWidth={2} />
+                ) : (
+                  <Plus size={16} strokeWidth={2} />
+                )}
+              </button>
+            </div>
             <p className="font-rubik text-sm text-slate-500">
               {bathroom.reviewCount} total review
               {bathroom.reviewCount === 1 ? "" : "s"}
             </p>
           </div>
-          {isWritingReview && (
-            <div className = "mt-5 animate-in fade-in slide-in-from-top-2 duration-300"> 
-            <article className="rounded-[1.5rem] border border-amber-900/10 bg-white/80 p-6 shadow-md">
 
-              <div className="flex items-start justify-between gap-4">
+          {isWritingReview ? (
+            <div className="animate-in slide-in-from-top-2 mt-5 fade-in duration-300">
+              <article className="rounded-[1.5rem] border border-amber-900/10 bg-white/80 p-6 shadow-md">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <UserAvatar size={44} src={viewer?.avatarUrl ?? undefined} />
 
-                <div className="flex items-start gap-3">
-                  <UserAvatar size={44} />
+                    <div>
+                      <p className="font-rubik text-base text-slate-600">
+                        {viewer?.username ?? "Loading..."}
+                      </p>
 
-                  <div>
-                    <p className="font-rubik text-base text-slate-600">
-                      Your username
-                    </p>
+                      <p className="mt-1 font-rubik text-sm text-slate-400">
+                        {formatReviewDate(new Date().toISOString())}
+                      </p>
+                    </div>
+                  </div>
 
-                    <p className="mt-1 font-rubik text-sm text-slate-400">
-                      {formatReviewDate(new Date())}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <Rating
+                      value={selectedRating}
+                      interactive
+                      onChange={setSelectedRating}
+                    />
+                    <span className="font-rubik text-lg text-amber-900">
+                      {selectedRating
+                        ? `${formatRatingLabel(selectedRating)}/5 poops`
+                        : editingReviewId
+                          ? "Select new rating"
+                          : "Select rating"}
+                    </span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <Rating value={0} />
-                  <span className="font-rubik text-lg text-amber-900">
-                    Select rating
-                  </span>
+                <div className="mt-4 border-t border-amber-900/10 pt-4">
+                  <textarea
+                    ref={textareaRef}
+                    value={reviewDescription}
+                    onChange={(event) => setReviewDescription(event.target.value)}
+                    placeholder="Write your review..."
+                    rows={3}
+                    className="w-full resize-none rounded-lg border border-amber-900/20 p-3 font-rubik text-lg text-slate-800 outline-none focus:border-amber-900"
+                  />
+
+                  {reviewError ? (
+                    <p className="mt-3 font-rubik text-sm text-red-600">
+                      {reviewError}
+                    </p>
+                  ) : null}
+
+                  <div className="mt-4 flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={closeComposer}
+                      className="rounded-full border border-amber-900/20 bg-white px-4 py-2 font-rubik text-amber-900 transition hover:bg-amber-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSubmitReview}
+                      disabled={isSubmittingReview}
+                      className="rounded-full bg-amber-900 px-4 py-2 font-rubik text-white transition hover:bg-amber-800 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {isSubmittingReview
+                        ? editingReviewId
+                          ? "Saving..."
+                          : "Posting..."
+                        : editingReviewId
+                          ? "Save changes"
+                          : "Post Review"}
+                    </button>
+                  </div>
                 </div>
-
-              </div>
-
-              <div className="mt-4 border-t border-amber-900/10 pt-4">
-
-                <textarea
-                 ref={textareaRef}
-                  value={reviewDescription}
-                  onChange={(e) => setReviewDescription(e.target.value)}
-                  placeholder="Write your review..."
-                  rows={3}
-                  className="w-full resize-none rounded-lg border border-amber-900/20 p-3 font-rubik text-lg text-slate-800 outline-none focus:border-amber-900"
-                />
-
-                <div className="mt-4 flex justify-end">
-                  <button className="rounded-full bg-amber-900 px-4 py-2 font-rubik text-white transition hover:bg-amber-800">
-                    Post Review
-                  </button>
-                </div>
-
-              </div>
-
-            </article>
+              </article>
             </div>
-          )}
+          ) : null}
 
           {bathroom.reviews.length === 0 ? (
             <div className="mt-5 rounded-[1.5rem] border border-dashed border-amber-900/25 bg-white/60 p-6 font-rubik text-slate-600">
@@ -274,47 +597,66 @@ export default function BathroomDetailPanel({
               {bathroom.reviews.map((review) => (
                 <article
                   key={review.id}
-                  className="rounded-[1.5rem] border border-amber-900/10 bg-white/80 p-6 shadow-md hover:shadow-lg transition"
+                  className="rounded-[1.5rem] border border-amber-900/10 bg-white/80 p-6 shadow-md transition hover:shadow-lg"
                 >
                   <div className="flex items-start justify-between gap-4">
-                
-                
-                <div className="flex items-start gap-3">
-                  <UserAvatar size={44} src={review.avatarUrl ?? undefined} />
+                    <div className="flex items-start gap-3">
+                      <UserAvatar size={44} src={review.avatarUrl ?? undefined} />
 
-                  <div>
-                    <p className="font-rubik text-base text-slate-600">
-                      {review.username}
-                    </p>
+                      <div>
+                        <p className="font-rubik text-base text-slate-600">
+                          {review.username}
+                        </p>
 
-                    {formatReviewDate(review.createdAt) ? (
-                      <p className="mt-1 font-rubik text-sm text-slate-400">
-                        {formatReviewDate(review.createdAt)}
-                      </p>
-                    ) : null}
+                        {formatReviewDate(review.createdAt) || review.editedAt ? (
+                          <p className="mt-1 font-rubik text-sm text-slate-400">
+                            {formatReviewDate(review.createdAt)}
+                            {review.editedAt ? (
+                              <span className="ml-2 italic">(Edited)</span>
+                            ) : null}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      {review.userId && viewer?.id === review.userId ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openComposer(review)}
+                            className="rounded-full border border-amber-900/20 p-2 text-amber-900 transition hover:bg-rose-50"
+                            aria-label="Edit your review"
+                          >
+                            <Pencil size={14} strokeWidth={2} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setReviewPendingDelete(review)}
+                            disabled={deletingReviewId === review.id}
+                            className="rounded-full border border-red-200 p-2 text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            aria-label="Delete your review"
+                          >
+                            <Trash2 size={14} strokeWidth={2} />
+                          </button>
+                        </div>
+                      ) : null}
+
+                      <div className="flex items-center gap-3">
+                        <Rating value={review.rating} />
+                        <span className="font-rubik text-lg text-amber-900">
+                          {formatRatingLabel(review.rating)}/5 poops
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                
-                <div className="flex items-center gap-3">
-                  <Rating value={review.rating} />
-                  <span className="font-rubik text-lg text-amber-900">
-                    {review.rating}/5 poops
-                  </span>
-                </div>
-
-              </div>
-
-              
-              <div className="mt-4 border-t border-amber-900/10 pt-4">
-
-                
-                <p className="font-rubik text-xl text-slate-800 leading-8">
-                  {review.description || "No written review."}
-                </p>
-
-              </div>
-            </article>
+                  <div className="mt-4 border-t border-amber-900/10 pt-4">
+                    <p className="font-rubik text-xl leading-8 text-slate-800">
+                      {review.description || "No written review."}
+                    </p>
+                  </div>
+                </article>
               ))}
             </div>
           )}
