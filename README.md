@@ -10,7 +10,7 @@ Locally, the app supports:
 - Review creation and editing
 - Social features on the `poopers` page
 - Profile management and avatar uploads
-- Optional AI-generated bathroom review summaries
+- Gemini-generated bathroom review summaries when configured
 
 ---
 
@@ -81,19 +81,20 @@ This repository **does not include Docker or a local database container**. The e
 
 # Environment Setup
 
-Copy `.env.example` into both `.env.local` and `.env`:
+For the submission tarball, the required environment files are already included, so no manual environment setup is required for standard local startup.
+
+If you run the project from a clean clone instead of the bundled tarball, `.env` is the important file in the current repo:
+
+- **Next.js** can read runtime variables from `.env`
+- **Prisma CLI** reads environment variables from `.env` through `dotenv/config` in `prisma.config.ts`
+- `.env.local` is only useful if you want a local Next.js override file
+
+If you need to recreate the files manually, copy `.env.example` to `.env`. You only need to duplicate it to `.env.local` if you want separate local overrides.
 
 ```bash
-cp .env.example .env.local
 cp .env.example .env
+cp .env .env.local
 ```
-
-Why both files:
-
-- **Next.js runtime variables** are loaded from `.env.local`
-- **Prisma CLI** reads environment variables from `.env`
-
-Keeping both files identical simplifies local development.
 
 ---
 
@@ -131,16 +132,16 @@ If `DATABASE_URL` uses a connection pool, `DIRECT_URL` should reference the non-
 
 ---
 
-### Optional AI Features
+### Only Required for Gemini Summaries
 
 ```env
 GEMINI_API_KEY=
 GEMINI_MODEL=gemini-2.5-flash-lite
 ```
 
-These are only required for AI-generated bathroom summaries.
+These are only required for Gemini-generated bathroom summaries and the summary backfill script.
 
-The core application functions without them.
+The app itself still runs without them. When Gemini is not configured, bathroom detail falls back to regular review text or a basic building/floor/type description.
 
 ---
 
@@ -200,9 +201,7 @@ http://localhost:3000
 - If Google OAuth is enabled, users can sign in through Google.
 - Bathroom data will appear immediately if the database already contains records.
 - If the database is empty, bathrooms can be created through the **Add Review** flow.
-- AI summaries appear only when:
-  - Gemini API is configured
-  - A bathroom has at least two reviews.
+- Gemini-backed summaries appear only when Gemini is configured and a bathroom has at least two reviews; otherwise the app falls back to non-AI bathroom detail text.
 
 ---
 
@@ -251,14 +250,10 @@ This script generates summaries for bathrooms that already have reviews.
 
 ---
 
-# Environment File for Grading
+# Environment Files for Grading
 
-The `.env` file is **not committed to the repository**.
+The environment files are **not committed to the repository**.
 
-However, the `.env` file **is included in the submission tarball** so instructors can run the application locally without needing to configure credentials manually.
+They are included in the submission tarball so instructors can run the application locally without configuring credentials manually.
 
-The `.env` file contains:
-
-- Supabase URL and keys
-- PostgreSQL connection strings
-- Optional Gemini API key
+In the current repo, `.env` is the file that matters for both Prisma CLI and general app startup. `.env.local` is only a duplicate override file for Next.js and is redundant if it contains the same values as `.env`.
