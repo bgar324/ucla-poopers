@@ -130,6 +130,23 @@ export default function AddReviewPage() {
   if (match) {
     setLatitude(match.latitude);
     setLongitude(match.longitude);
+  } else {
+    if (!navigator.geolocation) {
+      setLatitude(0);
+      setLongitude(0);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLatitude(pos.coords.latitude);
+        setLongitude(pos.coords.longitude);
+      },
+      () => {
+        setLatitude(0);
+        setLongitude(0);
+      },
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
   }
 }, [building, bathrooms]);
 
