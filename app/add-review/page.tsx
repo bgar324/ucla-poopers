@@ -13,6 +13,8 @@ interface BathroomOption {
   floor: number;
   type: string;
   typeLabel?: string;
+  latitude: number;
+  longitude: number;
 }
 
 const BATHROOM_TYPES = [
@@ -119,19 +121,17 @@ export default function AddReviewPage() {
   }, [bathrooms, requestedBathroomId]);
 
   useEffect(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLatitude(pos.coords.latitude);
-        setLongitude(pos.coords.longitude);
-      },
-      () => {
-        setLatitude(0);
-        setLongitude(0);
-      },
-      { enableHighAccuracy: true, timeout: 5000 }
-    );
-  }, []);
+  if (!building) return;
+  
+  const match = bathrooms.find(
+    (b) => b.building.toLowerCase() === building.toLowerCase()
+  );
+  
+  if (match) {
+    setLatitude(match.latitude);
+    setLongitude(match.longitude);
+  }
+}, [building, bathrooms]);
 
   const searchLower = bathroomSearch.trim().toLowerCase();
   const filteredBathrooms = useMemo(() => {
