@@ -28,7 +28,8 @@ export default function OpenClose({
         throw new Error("Failed to update bathroom status");
       }
 
-      setIsOpen((prev) => !prev);
+      const updated = await res.json();
+      setIsOpen(!updated.is_closed);
     } catch (error) {
       console.error(error);
     } finally {
