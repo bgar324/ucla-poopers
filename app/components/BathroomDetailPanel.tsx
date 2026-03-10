@@ -440,8 +440,25 @@ export default function BathroomDetailPanel({
               <h1 className="font-gasoek text-4xl leading-tight text-amber-900 lg:text-5xl">
                 {bathroom.name}
               </h1>
-              <div className="mt-1 lg:mt-2">
+              <div className="mt-1 lg:mt-2 flex items-center gap-3">
                 <OpenCloseBadge isOpen={bathroom.isOpen} />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const res = await fetch(`/api/bathrooms/${bathroomId}/status`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ isOpen: !bathroom.isOpen }),
+                    });
+                    if (res.ok) {
+                      const updated = await res.json();
+                      setBathroom((prev) => prev ? { ...prev, isOpen: !updated.is_closed } : prev);
+                    }
+                  }}
+                  className="rounded-full border border-amber-900/20 bg-white/80 px-3 py-1 font-rubik text-sm text-amber-900 transition hover:bg-white"
+                >
+                  {bathroom.isOpen ? "Report Closed" : "Report Open"}
+                </button>
               </div>
             </div>
 

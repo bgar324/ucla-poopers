@@ -1,7 +1,6 @@
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import OpenClose from "./OpenClose";
 import Rating from "@/app/components/Rating";
 import Reviews from "./Reviews";
 
