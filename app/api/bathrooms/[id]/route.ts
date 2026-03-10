@@ -4,6 +4,33 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
+interface BathroomDetailRouteReview {
+  id: string;
+  rating: number;
+  description: string;
+  created_at: Date;
+  edited_at: Date | null;
+  user: {
+    id: string;
+    username: string;
+    avatarUrl: string | null;
+  } | null;
+}
+
+interface BathroomDetailRouteBathroom {
+  id: string;
+  name: string;
+  building: string;
+  floor: number;
+  latitude: number;
+  longitude: number;
+  type: string;
+  is_closed: boolean;
+  reviewSummary: string | null;
+  reviewSummaryReviewCount: number | null;
+  reviews: BathroomDetailRouteReview[];
+}
+
 function formatBathroomType(type: string): string {
   switch (type) {
     case "accessible":
@@ -47,7 +74,7 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const bathroom = await prisma.bathroom.findUnique({
+    const bathroom = (await prisma.bathroom.findUnique({
       where: { id },
       include: {
         reviews: {
@@ -68,7 +95,7 @@ export async function GET(
           },
         },
       },
-    });
+    })) as BathroomDetailRouteBathroom | null;
 
     if (!bathroom) {
       return NextResponse.json(

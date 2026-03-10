@@ -3,6 +3,23 @@ import prisma from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
+interface BathroomListRouteReview {
+  rating: number;
+  description: string;
+}
+
+interface BathroomListRouteBathroom {
+  id: string;
+  name: string;
+  building: string;
+  floor: number;
+  latitude: number;
+  longitude: number;
+  type: string;
+  is_closed: boolean;
+  reviews: BathroomListRouteReview[];
+}
+
 function isUuidLike(value: string): boolean {
   return /^[0-9a-fA-F-]{36}$/.test(value);
 }
@@ -75,7 +92,7 @@ export async function GET(request: NextRequest) {
       excludeReviewedByUserId = user?.id ?? null;
     }
 
-    const bathrooms = await prisma.bathroom.findMany({
+    const bathrooms = (await prisma.bathroom.findMany({
       where: {
         ...(type && { type }),
         ...(building && { building }),
@@ -95,7 +112,7 @@ export async function GET(request: NextRequest) {
           select: { rating: true, description: true },
         },
       },
-    });
+    })) as BathroomListRouteBathroom[];
 
     // Format response
     const spots = bathrooms.map((bathroom) => {

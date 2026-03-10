@@ -8,6 +8,25 @@ interface BathroomDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
+function OpenCloseStatus({ isOpen }: { isOpen: boolean }) {
+  return (
+    <p
+      className={`inline-flex items-center rounded-full px-3 py-1 font-rubik text-xs font-medium uppercase tracking-wider ${
+        isOpen
+          ? "border border-green-200 bg-green-500/10 text-green-700"
+          : "border border-red-200 bg-red-500/10 text-red-700"
+      }`}
+    >
+      <span
+        className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+          isOpen ? "bg-green-500" : "bg-red-500"
+        }`}
+      />
+      {isOpen ? "Open now" : "Closed"}
+    </p>
+  );
+}
+
 function formatBathroomType(type: string) {
   switch (type) {
     case "accessible":
@@ -71,10 +90,7 @@ export default async function BathroomDetailPage({
           </p>
         </div>
 
-        <OpenClose
-          bathroomId={bathroom.id}
-          initialIsOpen={!bathroom.is_closed}
-        />
+        <OpenCloseStatus isOpen={!bathroom.is_closed} />
 
         <div className="flex items-center gap-3">
           <Rating value={averageRating} />

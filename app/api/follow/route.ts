@@ -4,6 +4,19 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
+interface FollowListRouteRecord {
+  following: {
+    id: string;
+    username: string;
+    firstName: string;
+    lastName: string;
+    avatarUrl: string | null;
+    _count: {
+      reviews: number;
+    };
+  };
+}
+
 async function getCurrentUserId(request: NextRequest) {
   const { user } = await requireAuthUser(request);
 
@@ -41,7 +54,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found." }, { status: 404 });
     }
 
-    const follows = await prisma.follow.findMany({
+    const follows = (await prisma.follow.findMany({
       where: { followerId: currentUserId },
       select: {
         following: {
@@ -63,7 +76,7 @@ export async function GET(request: NextRequest) {
         { following: { reviews: { _count: "desc" } } },
         { following: { username: "asc" } },
       ],
-    });
+    })) as FollowListRouteRecord[];
 
     return NextResponse.json({
       users: follows.map(({ following }) => ({

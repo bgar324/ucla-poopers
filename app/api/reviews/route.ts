@@ -3,6 +3,27 @@ import { generateBathroomSummary, MIN_REVIEWS_FOR_AI_SUMMARY } from "@/lib/gemin
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
+interface ReviewListRouteReview {
+  id: string;
+  bathroom_id: string;
+  user_id: string;
+  rating: number;
+  description: string;
+  created_at: Date;
+  edited_at: Date | null;
+  user: {
+    username: string;
+  } | null;
+  bathroom: {
+    id: string;
+    name: string;
+    building: string;
+    floor: number;
+    type: string;
+    is_closed: boolean;
+  };
+}
+
 function formatBathroomType(type: string): string {
   switch (type) {
     case "accessible":
@@ -330,7 +351,7 @@ export async function DELETE(req: NextRequest) {
 //get all reviews
 export async function GET() {
   try {
-    const reviews = await prisma.review.findMany({
+    const reviews = (await prisma.review.findMany({
       orderBy: { created_at: "desc" },
       include: {
         user: { select: { username: true } },
@@ -345,7 +366,7 @@ export async function GET() {
           },
         },
       },
-    });
+    })) as ReviewListRouteReview[];
     return NextResponse.json({
       reviews: reviews.map((review) => ({
         ...review,

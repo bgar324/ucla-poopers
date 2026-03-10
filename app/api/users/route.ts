@@ -3,9 +3,20 @@ import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
+interface UserListRouteUser {
+  id: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl: string | null;
+  _count: {
+    reviews: number;
+  };
+}
+
 export async function GET() {
   try {
-    const users = await prisma.user.findMany({
+    const users = (await prisma.user.findMany({
       select: {
         id: true,
         username: true,
@@ -19,7 +30,7 @@ export async function GET() {
         },
       },
       orderBy: [{ reviews: { _count: "desc" } }, { username: "asc" }],
-    });
+    })) as UserListRouteUser[];
 
     return NextResponse.json({
       users: users.map(({ _count, ...user }) => ({
