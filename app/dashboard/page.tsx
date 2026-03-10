@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Navbar from "@/app/components/Navbar";
 import supabase from "@/supabaseClient";
-import { Search } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import BathroomDetailPanel from "../components/BathroomDetailPanel";
@@ -370,23 +370,30 @@ export default function Dashboard() {
             >
               Building
             </label>
-            <select
-              id="building-filter"
-              value={selectedBuilding}
-              onChange={(event) => {
-                setSelectedBuilding(event.target.value);
-                setSelectedBathroomId(null);
-                setActivePanel("map");
-              }}
-              className="h-11 w-full rounded-xl border border-amber-900/30 bg-white px-4 font-rubik text-sm text-amber-900 outline-none transition focus:ring-2 focus:ring-amber-900"
-            >
-              <option value="all">All Buildings</option>
-              {buildingOptions.map((building) => (
+
+            <div className="relative">
+              <select
+                id="building-filter"
+                value={selectedBuilding}
+                onChange={(event) => {
+                  setSelectedBuilding(event.target.value)
+                  setSelectedBathroomId(null)
+                  setActivePanel("map")
+                }}
+                className="h-11 w-full appearance-none rounded-xl border border-amber-900/30 bg-white px-4 pr-10 font-rubik text-sm text-amber-900 outline-none transition focus:ring-2 focus:ring-amber-900 hover:cursor-pointer">
+                <option value="all">All Buildings</option>
+
+                {buildingOptions.map((building) => (
                 <option key={building} value={building}>
                   {building}
                 </option>
-              ))}
-            </select>
+                ))}
+              </select>
+
+              <ChevronDown 
+                className= "pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-900 transition-transform duration-200"
+              />
+            </div>
           </div>
 
           {activePanel === "map" && selectedBathroomId ? (
@@ -396,7 +403,7 @@ export default function Dashboard() {
                 setSelectedBathroomId(null);
                 setActivePanel("map");
               }}
-              className="mt-4 rounded-xl border border-amber-900/30 bg-amber-50 px-4 py-2 font-rubik text-sm text-amber-900 transition hover:bg-amber-100"
+              className="mt-4 rounded-xl border pr-3 border-amber-900/30 bg-amber-50 px-4 py-2 font-rubik text-sm text-amber-900 transition hover:bg-amber-100"
             >
               Show all spots again
             </button>
@@ -442,11 +449,13 @@ export default function Dashboard() {
 
         <section className="relative min-h-[500px] overflow-hidden lg:h-full lg:min-h-0">
           {activePanel === "detail" && selectedBathroomId ? (
+
             <BathroomDetailPanel
               bathroomId={selectedBathroomId}
               onBack={() => setActivePanel("map")}
               backLabel="Back to map"
             />
+        
           ) : !errorMessage ? (
             <div className="absolute inset-0">
               <BathroomMap

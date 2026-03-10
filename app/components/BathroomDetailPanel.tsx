@@ -427,7 +427,7 @@ export default function BathroomDetailPanel({
         <button
           type="button"
           onClick={onBack}
-          className="cursor-pointer rounded-full border border-amber-900/30 bg-white/80 px-4 py-2 font-rubik text-sm text-amber-900 transition hover:bg-white"
+          className="cursor-pointer shadow-md rounded-full border border-amber-900/30 bg-white/80 px-4 py-2 font-rubik text-sm text-amber-900 transition hover:bg-rose-50"
         >
           {backLabel}
         </button>
