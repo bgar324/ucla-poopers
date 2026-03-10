@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateBathroomSummary, MIN_REVIEWS_FOR_AI_SUMMARY } from "@/lib/geminiBathroomSummary";
 import prisma from "@/lib/prisma";
+import { awardBadge } from "@/lib/badges";
 import { Prisma } from "@prisma/client";
 
 function formatBathroomType(type: string): string {
@@ -164,6 +165,11 @@ export async function POST(req: NextRequest) {
     } catch (summaryError) {
       console.error("REVIEW SUMMARY REFRESH ERROR:", summaryError);
     }
+
+    const reviewCount = await prisma.review.count({ where: { user_id: user.id } });
+    if (reviewCount === 1) await awardBadge(supabaseAuthId, "first_flush");
+    if (reviewCount === 5) await awardBadge(supabaseAuthId, "regular");
+    if (reviewCount === 15) await awardBadge(supabaseAuthId, "top_reviewer");
 
     return NextResponse.json({ review: newReview });
   } catch (err: unknown) {
