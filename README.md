@@ -153,10 +153,23 @@ The following services must already exist:
 Required for login, signup, session management, and profile syncing.
 
 ### Google OAuth (Optional)
-If enabled, Supabase must allow this callback URL:
+If enabled, configure both local and deployed app URLs in **Supabase Auth > URL Configuration**:
 
 ```
+Site URL:
+https://ucla-poopers.vercel.app
+
+Redirect URLs:
 http://localhost:3000/auth/callback
+https://ucla-poopers.vercel.app/auth/callback
+```
+
+If you use preview deployments or a custom domain, update the Site URL to your primary live domain and add the extra callback URLs too.
+
+In **Google Cloud Console**, the OAuth client should keep using the Supabase callback URL:
+
+```
+https://YOUR_SUPABASE_PROJECT_REF.supabase.co/auth/v1/callback
 ```
 
 ### Supabase Storage
