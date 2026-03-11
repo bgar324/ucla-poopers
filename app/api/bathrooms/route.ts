@@ -3,6 +3,8 @@ import prisma from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
+const EMPTY_REVIEW_DETAIL = "Looks like no one has pooped here yet.";
+
 interface BathroomListRouteReview {
   rating: number;
   description: string;
@@ -43,6 +45,23 @@ function getAverageRating(ratings: number[]): number {
   if (ratings.length === 0) return 0;
   const total = ratings.reduce((sum, rating) => sum + rating, 0);
   return Math.round((total / ratings.length) * 10) / 10;
+}
+
+function getFallbackDetail(
+  building: string,
+  floor: number,
+  type: string,
+  reviewCount: number,
+  primaryReview?: { description: string },
+) {
+  if (reviewCount === 0) {
+    return EMPTY_REVIEW_DETAIL;
+  }
+
+  return (
+    primaryReview?.description ||
+    `${building} floor ${floor} ${formatBathroomType(type)}`
+  );
 }
 
 // POST — add a new bathroom
@@ -119,6 +138,7 @@ export async function GET(request: NextRequest) {
       const ratings = bathroom.reviews.map((review) => review.rating);
       const averageRating = getAverageRating(ratings);
       const primaryReview = bathroom.reviews[0];
+      const reviewCount = bathroom.reviews.length;
 
       return {
         id: bathroom.id,
@@ -131,10 +151,14 @@ export async function GET(request: NextRequest) {
         typeLabel: formatBathroomType(bathroom.type),
         isOpen: !bathroom.is_closed,
         rating: averageRating,
-        reviewCount: bathroom.reviews.length,
-        detail:
-          primaryReview?.description ??
-          `${bathroom.building} floor ${bathroom.floor} ${formatBathroomType(bathroom.type)}`,
+        reviewCount,
+        detail: getFallbackDetail(
+          bathroom.building,
+          bathroom.floor,
+          bathroom.type,
+          reviewCount,
+          primaryReview,
+        ),
       };
     });
 

@@ -5,7 +5,7 @@ import Navbar from "@/app/components/Navbar";
 import supabase from "@/supabaseClient";
 import { Search, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import BathroomDetailPanel from "../components/BathroomDetailPanel";
 import FilterDropdown, {
   type DashboardFilter,
@@ -32,6 +32,19 @@ interface BathroomSpot {
   isOpen: boolean;
   rating: number;
   reviewCount: number;
+}
+
+async function fetchBathroomSpots() {
+  const response = await fetch("/api/bathrooms", { cache: "no-store" });
+  const data = (await response.json().catch(() => null)) as
+    | { bathrooms?: BathroomSpot[]; error?: string }
+    | null;
+
+  if (!response.ok || !data?.bathrooms) {
+    throw new Error(data?.error ?? "Failed to load bathrooms.");
+  }
+
+  return data.bathrooms;
 }
 
 function toRadians(value: number) {
@@ -111,6 +124,19 @@ export default function Dashboard() {
     latitude: number;
     longitude: number;
   } | null>(null);
+  const selectedSpotRef = useRef<HTMLDivElement | null>(null);
+
+  const refreshSpots = async () => {
+    try {
+      const nextSpots = await fetchBathroomSpots();
+      setSpots(nextSpots);
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to load bathrooms."
+      );
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -130,20 +156,13 @@ export default function Dashboard() {
       }
 
       try {
-        const response = await fetch("/api/bathrooms");
-        const data = (await response.json().catch(() => null)) as
-          | { bathrooms?: BathroomSpot[]; error?: string }
-          | null;
+        const nextSpots = await fetchBathroomSpots();
 
         if (!active) {
           return;
         }
 
-        if (!response.ok || !data?.bathrooms) {
-          throw new Error(data?.error ?? "Failed to load bathrooms.");
-        }
-
-        setSpots(data.bathrooms);
+        setSpots(nextSpots);
       } catch (error) {
         if (!active) {
           return;
@@ -287,6 +306,18 @@ export default function Dashboard() {
     return selectedSpot ? [selectedSpot] : filteredSpots;
   }, [activePanel, filteredSpots, selectedBathroomId]);
 
+  useEffect(() => {
+    if (!selectedBathroomId || !selectedSpotRef.current) {
+      return;
+    }
+
+    selectedSpotRef.current.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+      behavior: "smooth",
+    });
+  }, [selectedBathroomId, sidebarSpots]);
+
   const handleMarkerClick = (bathroomId: string) => {
     setActivePanel("map");
     setSelectedBathroomId((current) =>
@@ -425,6 +456,7 @@ export default function Dashboard() {
             {sidebarSpots.map((spot) => (
               <div
                 key={spot.id}
+                ref={spot.id === selectedBathroomId ? selectedSpotRef : null}
                 onMouseEnter={() => setHoveredBathroomId(spot.id)}
                 onMouseLeave={() => setHoveredBathroomId(null)}
               >
@@ -454,6 +486,7 @@ export default function Dashboard() {
               bathroomId={selectedBathroomId}
               onBack={() => setActivePanel("map")}
               backLabel="Back to map"
+              onReviewSaved={() => void refreshSpots()}
             />
         
           ) : !errorMessage ? (

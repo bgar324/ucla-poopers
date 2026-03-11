@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
+const EMPTY_REVIEW_DETAIL = "Looks like no one has pooped here yet.";
+
 interface BathroomDetailRouteReview {
   id: string;
   rating: number;
@@ -57,8 +59,13 @@ function getFallbackDetail(
   building: string,
   floor: number,
   type: string,
+  reviewCount: number,
   primaryReview?: { description: string },
 ) {
+  if (reviewCount === 0) {
+    return EMPTY_REVIEW_DETAIL;
+  }
+
   return (
     primaryReview?.description ||
     `${building} floor ${floor} ${formatBathroomType(type)}`
@@ -112,6 +119,7 @@ export async function GET(
       bathroom.building,
       bathroom.floor,
       bathroom.type,
+      reviewCount,
       primaryReview,
     );
 

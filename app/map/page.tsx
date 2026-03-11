@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Search } from "lucide-react";
 import Navbar from "../components/Navbar";
@@ -23,6 +23,19 @@ interface Bathroom {
   isOpen: boolean;
   rating: number;
   reviewCount: number;
+}
+
+async function fetchBathrooms() {
+  const response = await fetch("/api/bathrooms", { cache: "no-store" });
+  const data = (await response.json().catch(() => null)) as
+    | { bathrooms?: Bathroom[]; error?: string }
+    | null;
+
+  if (!response.ok || !data?.bathrooms) {
+    throw new Error(data?.error ?? "Failed to load bathrooms.");
+  }
+
+  return data.bathrooms;
 }
 
 const BathroomMap = dynamic(
@@ -76,24 +89,30 @@ export default function MapPage() {
   const [hoveredBathroomId, setHoveredBathroomId] = useState<string | null>(
     null
   );
+  const selectedBathroomRef = useRef<HTMLDivElement | null>(null);
+
+  const refreshBathrooms = async () => {
+    try {
+      const nextBathrooms = await fetchBathrooms();
+      setBathrooms(nextBathrooms);
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to load bathrooms."
+      );
+    }
+  };
 
   useEffect(() => {
     let active = true;
 
     const loadBathrooms = async () => {
       try {
-        const response = await fetch("/api/bathrooms");
-        const data = (await response.json().catch(() => null)) as
-          | { bathrooms?: Bathroom[]; error?: string }
-          | null;
+        const nextBathrooms = await fetchBathrooms();
 
         if (!active) return;
 
-        if (!response.ok || !data?.bathrooms) {
-          throw new Error(data?.error ?? "Failed to load bathrooms.");
-        }
-
-        setBathrooms(data.bathrooms);
+        setBathrooms(nextBathrooms);
       } catch (error) {
         if (!active) return;
 
@@ -164,6 +183,18 @@ export default function MapPage() {
 
     return filteredBathrooms;
   }, [activePanel, filteredBathrooms, selectedBathroomId]);
+
+  useEffect(() => {
+    if (!selectedBathroomId || !selectedBathroomRef.current) {
+      return;
+    }
+
+    selectedBathroomRef.current.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+      behavior: "smooth",
+    });
+  }, [selectedBathroomId, sidebarBathrooms]);
 
   const handleMarkerClick = (bathroomId: string) => {
     setActivePanel("map");
@@ -246,6 +277,9 @@ export default function MapPage() {
               {sidebarBathrooms.map((bathroom) => (
                 <div
                   key={bathroom.id}
+                  ref={
+                    bathroom.id === selectedBathroomId ? selectedBathroomRef : null
+                  }
                   onMouseEnter={() => setHoveredBathroomId(bathroom.id)}
                   onMouseLeave={() => setHoveredBathroomId(null)}
                 >
@@ -275,6 +309,7 @@ export default function MapPage() {
               bathroomId={selectedBathroomId}
               onBack={() => setActivePanel("map")}
               backLabel="Back to map"
+              onReviewSaved={() => void refreshBathrooms()}
             />
           ) : (
             <div className="absolute inset-0">
