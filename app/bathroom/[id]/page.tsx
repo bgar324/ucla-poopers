@@ -8,6 +8,25 @@ interface BathroomDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
+interface BathroomDetailPageReview {
+  id: string;
+  rating: number;
+  description: string;
+  user: {
+    username: string;
+  } | null;
+}
+
+interface BathroomDetailPageBathroom {
+  id: string;
+  name: string;
+  building: string;
+  floor: number;
+  type: string;
+  is_closed: boolean;
+  reviews: BathroomDetailPageReview[];
+}
+
 function OpenCloseStatus({ isOpen }: { isOpen: boolean }) {
   return (
     <p
@@ -45,7 +64,7 @@ export default async function BathroomDetailPage({
 }: BathroomDetailPageProps) {
   const { id } = await params;
 
-  const bathroom = await prisma.bathroom.findUnique({
+  const bathroom = (await prisma.bathroom.findUnique({
     where: { id },
     include: {
       reviews: {
@@ -58,7 +77,7 @@ export default async function BathroomDetailPage({
         },
       },
     },
-  });
+  })) as BathroomDetailPageBathroom | null;
 
   if (!bathroom) {
     notFound();
