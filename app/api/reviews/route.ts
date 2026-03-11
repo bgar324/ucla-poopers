@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateBathroomSummary, MIN_REVIEWS_FOR_AI_SUMMARY } from "@/lib/geminiBathroomSummary";
 import prisma from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
 
 interface ReviewListRouteReview {
   id: string;
@@ -24,6 +23,13 @@ interface ReviewListRouteReview {
   };
 }
 
+interface PrismaKnownRequestErrorLike {
+  code: string;
+  meta?: {
+    target?: unknown;
+  };
+}
+
 function formatBathroomType(type: string): string {
   switch (type) {
     case "accessible":
@@ -35,6 +41,17 @@ function formatBathroomType(type: string): string {
     default:
       return "Gender Neutral";
   }
+}
+
+function isPrismaKnownRequestError(
+  error: unknown,
+): error is PrismaKnownRequestErrorLike {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof (error as { code?: unknown }).code === "string"
+  );
 }
 
 async function refreshBathroomSummary(bathroomId: string) {
@@ -188,7 +205,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ review: newReview });
   } catch (err: unknown) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+    if (isPrismaKnownRequestError(err) && err.code === "P2002") {
       const uniqueTarget = err.meta?.target;
       const isBathroomUserUnique =
         (Array.isArray(uniqueTarget) &&
