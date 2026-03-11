@@ -455,7 +455,7 @@ export default function BathroomDetailPanel({
                       setBathroom((prev) => prev ? { ...prev, isOpen: !updated.is_closed } : prev);
                     }
                   }}
-                  className="rounded-full border border-amber-900/20 bg-white/80 px-3 py-1 font-rubik text-sm text-amber-900 transition hover:bg-white"
+                  className="rounded-full border border-amber-900/20 bg-white/80 px-3 py-1 font-rubik text-sm text-amber-900 transition hover:bg-white cursor-pointer"
                 >
                   {bathroom.isOpen ? "Report Closed" : "Report Open"}
                 </button>

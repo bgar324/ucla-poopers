@@ -20,6 +20,40 @@ interface SyncUserBody {
   twoFactorEnabled?: boolean;
 }
 
+const AVATAR_STORAGE_PATH_SEGMENT = "/storage/v1/object/public/avatars/";
+
+function normalizeIncomingAvatarUrl(value: string | null | undefined) {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function isManagedAvatarUrl(value: string | null | undefined) {
+  if (!value) {
+    return false;
+  }
+
+  return value.includes(AVATAR_STORAGE_PATH_SEGMENT);
+}
+
+function resolveSyncedAvatarUrl(
+  existingAvatarUrl: string | null | undefined,
+  incomingAvatarUrl: string | undefined,
+) {
+  if (isManagedAvatarUrl(existingAvatarUrl)) {
+    return existingAvatarUrl ?? null;
+  }
+
+  if (incomingAvatarUrl) {
+    return incomingAvatarUrl;
+  }
+
+  return existingAvatarUrl ?? null;
+}
+
 async function resolveUniqueUsername(
   requestedUsername: string,
   existingUserId?: string,
@@ -51,6 +85,12 @@ export async function POST(request: NextRequest) {
 
     const body = (await request.json().catch(() => ({}))) as SyncUserBody;
     const defaultNames = namesFromUser(user);
+    const metadataAvatarUrl = normalizeIncomingAvatarUrl(
+      typeof user.user_metadata?.avatar_url === "string"
+        ? user.user_metadata.avatar_url
+        : undefined,
+    );
+    const requestedAvatarUrl = normalizeIncomingAvatarUrl(body.avatarUrl);
 
     const existing = await prisma.user.findUnique({
       where: { supabaseAuthId: user.id },
@@ -60,6 +100,7 @@ export async function POST(request: NextRequest) {
         twoFactorEnabled: true,
         firstName: true,
         lastName: true,
+        avatarUrl: true,
       },
     });
 
@@ -83,11 +124,10 @@ export async function POST(request: NextRequest) {
           body.lastName,
           existing?.lastName ?? defaultNames.lastName,
         ),
-        avatarUrl:
-          body.avatarUrl ??
-          (typeof user.user_metadata?.avatar_url === "string"
-            ? user.user_metadata.avatar_url
-            : null),
+        avatarUrl: resolveSyncedAvatarUrl(
+          existing?.avatarUrl,
+          requestedAvatarUrl ?? metadataAvatarUrl,
+        ),
         username,
         twoFactorEnabled:
           parseOptionalBoolean(body.twoFactorEnabled) ??
@@ -100,11 +140,7 @@ export async function POST(request: NextRequest) {
         username,
         firstName: safeProfileString(body.firstName, defaultNames.firstName),
         lastName: safeProfileString(body.lastName, defaultNames.lastName),
-        avatarUrl:
-          body.avatarUrl ??
-          (typeof user.user_metadata?.avatar_url === "string"
-            ? user.user_metadata.avatar_url
-            : null),
+        avatarUrl: requestedAvatarUrl ?? metadataAvatarUrl ?? null,
         twoFactorEnabled: parseOptionalBoolean(body.twoFactorEnabled) ?? false,
       },
     });

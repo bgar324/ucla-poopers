@@ -56,7 +56,7 @@ export default function LoginForm({ onToggle }: LoginFormProps) {
         avatarUrl:
           typeof data.user.user_metadata?.avatar_url === "string"
             ? data.user.user_metadata.avatar_url
-            : null,
+            : undefined,
       });
 
       const { data: assurance } =

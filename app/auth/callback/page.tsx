@@ -61,7 +61,9 @@ export default function AuthCallbackPage() {
           username:
             typeof metadata.username === "string" ? metadata.username : undefined,
           avatarUrl:
-            typeof metadata.avatar_url === "string" ? metadata.avatar_url : null,
+            typeof metadata.avatar_url === "string"
+              ? metadata.avatar_url
+              : undefined,
         });
 
         const { data: assurance } =

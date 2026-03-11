@@ -378,7 +378,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={() => router.push("/add-review")}
-                className="mt-4 w-full rounded-full bg-amber-900 px-4 py-2 font-semibold text-white hover:bg-amber-800"
+                className="mt-4 w-full rounded-full bg-amber-900 px-4 py-2 font-semibold text-white hover:bg-amber-800 cursor-pointer"
               >
                 Add Review
               </button>
