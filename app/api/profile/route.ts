@@ -80,7 +80,42 @@ async function ensureUserRecord(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { profile } = await ensureUserRecord(request);
-    return NextResponse.json({ user: profile });
+    const profileWithCounts = await prisma.user.findUnique({
+      where: { id: profile.id },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        avatarUrl: true,
+        twoFactorEnabled: true,
+        _count: {
+          select: {
+            following: true,
+            followers: true,
+          },
+        },
+      },
+    });
+
+    if (!profileWithCounts) {
+      return NextResponse.json({ error: "User not found." }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      user: {
+        id: profileWithCounts.id,
+        email: profileWithCounts.email,
+        username: profileWithCounts.username,
+        firstName: profileWithCounts.firstName,
+        lastName: profileWithCounts.lastName,
+        avatarUrl: profileWithCounts.avatarUrl,
+        twoFactorEnabled: profileWithCounts.twoFactorEnabled,
+        followingCount: profileWithCounts._count.following,
+        followerCount: profileWithCounts._count.followers,
+      },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unauthorized.";
     const status = message === "Unauthorized." ? 401 : 500;

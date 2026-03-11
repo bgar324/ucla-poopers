@@ -8,6 +8,8 @@ interface UserItem {
   lastName: string
   username: string
   reviewCount: number
+  followingCount: number
+  followerCount: number
   avatarUrl: string | null
 }
 
@@ -64,6 +66,14 @@ export default function UserCard({
           <div className="mt-3 flex flex-wrap gap-2">
             <span className="rounded-full bg-amber-100 px-2 py-1 font-rubik text-xs text-amber-900">
               {user.reviewCount} review{user.reviewCount === 1 ? "" : "s"}
+            </span>
+
+            <span className="rounded-full border border-amber-900/10 bg-white/80 px-2 py-1 font-rubik text-xs text-amber-800">
+              {user.followerCount} follower{user.followerCount === 1 ? "" : "s"}
+            </span>
+
+            <span className="rounded-full border border-amber-900/10 bg-white/80 px-2 py-1 font-rubik text-xs text-amber-800">
+              {user.followingCount} following
             </span>
           </div>
         </div>

@@ -11,6 +11,8 @@ interface UserListRouteUser {
   avatarUrl: string | null;
   _count: {
     reviews: number;
+    following: number;
+    followers: number;
   };
 }
 
@@ -26,6 +28,8 @@ export async function GET() {
         _count: {
           select: {
             reviews: true,
+            following: true,
+            followers: true,
           },
         },
       },
@@ -36,6 +40,8 @@ export async function GET() {
       users: users.map(({ _count, ...user }) => ({
         ...user,
         reviewCount: _count.reviews,
+        followingCount: _count.following,
+        followerCount: _count.followers,
       })),
     });
   } catch (error) {

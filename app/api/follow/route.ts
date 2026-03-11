@@ -4,16 +4,31 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-interface FollowListRouteRecord {
-  following: {
-    id: string;
-    username: string;
-    firstName: string;
-    lastName: string;
-    avatarUrl: string | null;
-    _count: {
-      reviews: number;
-    };
+type SocialListKind = "followers" | "following";
+
+interface FollowRouteUser {
+  id: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl: string | null;
+  _count: {
+    reviews: number;
+    following: number;
+    followers: number;
+  };
+}
+
+function mapFollowUser(user: FollowRouteUser) {
+  return {
+    id: user.id,
+    username: user.username,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    avatarUrl: user.avatarUrl,
+    reviewCount: user._count.reviews,
+    followerCount: user._count.followers,
+    followingCount: user._count.following,
   };
 }
 
@@ -46,6 +61,26 @@ async function getTargetUserFromBody(request: NextRequest) {
   return { error: null, targetUserId };
 }
 
+function getRequestedSocialList(request: NextRequest) {
+  const requestedTargetUserId =
+    request.nextUrl.searchParams.get("targetUserId")?.trim() ?? "";
+  const requestedList = request.nextUrl.searchParams.get("list");
+
+  if (!requestedTargetUserId && !requestedList) {
+    return null;
+  }
+
+  if (requestedList !== "followers" && requestedList !== "following") {
+    return { error: "Invalid social list type.", targetUserId: null, list: null };
+  }
+
+  return {
+    error: null,
+    targetUserId: requestedTargetUserId,
+    list: requestedList as SocialListKind,
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const currentUserId = await getCurrentUserId(request);
@@ -54,7 +89,113 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found." }, { status: 404 });
     }
 
-    const follows = (await prisma.follow.findMany({
+    const requestedSocialList = getRequestedSocialList(request);
+
+    if (requestedSocialList) {
+      const { error, list } = requestedSocialList;
+      const targetUserId = requestedSocialList.targetUserId || currentUserId;
+
+      if (error || !list) {
+        return NextResponse.json(
+          { error: error ?? "Invalid social list request." },
+          { status: 400 },
+        );
+      }
+
+      const targetUser = await prisma.user.findUnique({
+        where: { id: targetUserId },
+        select: { id: true },
+      });
+
+      if (!targetUser) {
+        return NextResponse.json({ error: "Target user not found." }, { status: 404 });
+      }
+
+      const canViewList =
+        targetUserId === currentUserId ||
+        Boolean(
+          await prisma.follow.findUnique({
+            where: {
+              followerId_followingId: {
+                followerId: currentUserId,
+                followingId: targetUserId,
+              },
+            },
+            select: { followerId: true },
+          }),
+        );
+
+      if (!canViewList) {
+        return NextResponse.json(
+          { error: "Follow this user to view their followers and following." },
+          { status: 403 },
+        );
+      }
+
+      if (list === "followers") {
+        const followers = await prisma.follow.findMany({
+          where: { followingId: targetUserId },
+          select: {
+            follower: {
+              select: {
+                id: true,
+                username: true,
+                firstName: true,
+                lastName: true,
+                avatarUrl: true,
+                _count: {
+                  select: {
+                    reviews: true,
+                    following: true,
+                    followers: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: [
+            { follower: { reviews: { _count: "desc" } } },
+            { follower: { username: "asc" } },
+          ],
+        });
+
+        return NextResponse.json({
+          users: followers.map(({ follower }) => mapFollowUser(follower)),
+        });
+      }
+
+      const following = await prisma.follow.findMany({
+        where: { followerId: targetUserId },
+        select: {
+          following: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              avatarUrl: true,
+              _count: {
+                select: {
+                  reviews: true,
+                  following: true,
+                  followers: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: [
+          { following: { reviews: { _count: "desc" } } },
+          { following: { username: "asc" } },
+        ],
+      });
+
+      return NextResponse.json({
+        users: following.map(({ following: followedUser }) => mapFollowUser(followedUser)),
+      });
+    }
+
+    const follows = await prisma.follow.findMany({
       where: { followerId: currentUserId },
       select: {
         following: {
@@ -67,6 +208,8 @@ export async function GET(request: NextRequest) {
             _count: {
               select: {
                 reviews: true,
+                following: true,
+                followers: true,
               },
             },
           },
@@ -76,17 +219,10 @@ export async function GET(request: NextRequest) {
         { following: { reviews: { _count: "desc" } } },
         { following: { username: "asc" } },
       ],
-    })) as FollowListRouteRecord[];
+    });
 
     return NextResponse.json({
-      users: follows.map(({ following }) => ({
-        id: following.id,
-        username: following.username,
-        firstName: following.firstName,
-        lastName: following.lastName,
-        avatarUrl: following.avatarUrl,
-        reviewCount: following._count.reviews,
-      })),
+      users: follows.map(({ following }) => mapFollowUser(following)),
     });
   } catch (error) {
     const message =
@@ -97,7 +233,7 @@ export async function GET(request: NextRequest) {
         : 500;
 
     console.error("GET FOLLOW ERROR:", error);
-      return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
