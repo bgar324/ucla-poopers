@@ -19,6 +19,14 @@ interface FollowRouteUser {
   };
 }
 
+interface FollowersListRouteRecord {
+  follower: FollowRouteUser;
+}
+
+interface FollowingListRouteRecord {
+  following: FollowRouteUser;
+}
+
 function mapFollowUser(user: FollowRouteUser) {
   return {
     id: user.id,
@@ -133,7 +141,7 @@ export async function GET(request: NextRequest) {
       }
 
       if (list === "followers") {
-        const followers = await prisma.follow.findMany({
+        const followers = (await prisma.follow.findMany({
           where: { followingId: targetUserId },
           select: {
             follower: {
@@ -157,14 +165,14 @@ export async function GET(request: NextRequest) {
             { follower: { reviews: { _count: "desc" } } },
             { follower: { username: "asc" } },
           ],
-        });
+        })) as FollowersListRouteRecord[];
 
         return NextResponse.json({
           users: followers.map(({ follower }) => mapFollowUser(follower)),
         });
       }
 
-      const following = await prisma.follow.findMany({
+      const following = (await prisma.follow.findMany({
         where: { followerId: targetUserId },
         select: {
           following: {
@@ -188,14 +196,14 @@ export async function GET(request: NextRequest) {
           { following: { reviews: { _count: "desc" } } },
           { following: { username: "asc" } },
         ],
-      });
+      })) as FollowingListRouteRecord[];
 
       return NextResponse.json({
         users: following.map(({ following: followedUser }) => mapFollowUser(followedUser)),
       });
     }
 
-    const follows = await prisma.follow.findMany({
+    const follows = (await prisma.follow.findMany({
       where: { followerId: currentUserId },
       select: {
         following: {
@@ -219,7 +227,7 @@ export async function GET(request: NextRequest) {
         { following: { reviews: { _count: "desc" } } },
         { following: { username: "asc" } },
       ],
-    });
+    })) as FollowingListRouteRecord[];
 
     return NextResponse.json({
       users: follows.map(({ following }) => mapFollowUser(following)),
