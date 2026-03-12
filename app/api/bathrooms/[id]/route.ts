@@ -29,6 +29,7 @@ interface BathroomDetailRouteBathroom {
   type: string;
   is_closed: boolean;
   created_by: string | null;
+  createdAt: Date | null;
   reviewSummary: string | null;
   reviewSummaryReviewCount: number | null;
   creator: {
@@ -137,10 +138,7 @@ export async function GET(
       reviewCount,
       primaryReview,
     );
-    const createdAt =
-      bathroom.reviews.length > 0
-        ? bathroom.reviews[bathroom.reviews.length - 1].created_at
-        : null;
+    const createdAt = bathroom.createdAt;
 
     let detail = fallbackDetail;
 

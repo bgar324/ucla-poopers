@@ -1,0 +1,2 @@
+ALTER TABLE "Bathroom"
+ADD COLUMN "createdAt" TIMESTAMP(3);

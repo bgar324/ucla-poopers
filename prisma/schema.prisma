@@ -34,6 +34,7 @@ model Bathroom {
   type                   String
   is_closed              Boolean   @default(false)
   created_by             String?
+  createdAt              DateTime?
   reviewSummary          String?
   reviewSummaryReviewCount Int?
   reviewSummaryUpdatedAt DateTime?

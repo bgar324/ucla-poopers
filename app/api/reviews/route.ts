@@ -169,6 +169,7 @@ export async function POST(req: NextRequest) {
           longitude: Number(longitude),
           type,
           created_by: user.id,
+          createdAt: new Date(),
         },
       });
     }

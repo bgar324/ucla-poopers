@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
         latitude: Number(latitude),
         longitude: Number(longitude),
         type,
+        createdAt: new Date(),
       },
     });
 
