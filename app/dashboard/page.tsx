@@ -138,6 +138,19 @@ export default function Dashboard() {
     }
   };
 
+  const openAddBathroomForm = () => {
+    const params = new URLSearchParams();
+    const trimmedSearch = searchQuery.trim();
+
+    if (trimmedSearch) {
+      params.set("name", trimmedSearch);
+    }
+
+    router.push(
+      params.toString() ? `/add-bathroom?${params.toString()}` : "/add-bathroom"
+    );
+  };
+
   useEffect(() => {
     let active = true;
 
@@ -471,7 +484,7 @@ export default function Dashboard() {
                 <button 
                 className ="hover:cursor-pointer"
                 type="button"
-                onClick={() => router.push("/add-bathroom")}
+                onClick={openAddBathroomForm}
                 > Want to add a new bathroom?  {" "} 
                   <span className = "underline hover:text-gray-500"> Click here. </span>
                 </button>

@@ -84,6 +84,13 @@ export default function AddReviewPage() {
 
     const params = new URLSearchParams(window.location.search);
     setRequestedBathroomId(params.get("bathroomId"));
+    setAddNewBathroom(true);
+
+    const prefilledName = params.get("name")?.trim() ?? "";
+    if (prefilledName) {
+      setName(prefilledName);
+      setBathroomSearch(prefilledName);
+    }
   }, []);
 
   useEffect(() => {
@@ -264,12 +271,12 @@ export default function AddReviewPage() {
 
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        throw new Error(data.error ?? "Failed to add review.");
+        throw new Error(data.error ?? "Failed to add bathroom.");
       }
 
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add review.");
+      setError(err instanceof Error ? err.message : "Failed to add bathroom.");
     } finally {
       setLoading(false);
     }
@@ -452,7 +459,7 @@ export default function AddReviewPage() {
           onClick={handleSubmit}
           disabled={loading}
         >
-          {loading ? "Saving..." : "Add Review"}
+          {loading ? "Saving..." : "Add Bathroom"}
         </button>
 
         <button
