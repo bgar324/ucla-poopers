@@ -1,5 +1,6 @@
 "use client";
 
+import { buildAuthCallbackUrl } from "@/lib/authRedirect";
 import { syncUserWithToken } from "@/lib/syncUser";
 import supabase from "@/supabaseClient";
 import { useRouter } from "next/navigation";
@@ -39,10 +40,12 @@ export default function SignUpForm({ onToggle }: SignUpFormProps) {
     setIsLoading(true);
 
     try {
+      const redirectTo = buildAuthCallbackUrl("/dashboard");
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: redirectTo,
           data: {
             first_name: firstName,
             last_name: lastName,
@@ -83,7 +86,7 @@ export default function SignUpForm({ onToggle }: SignUpFormProps) {
     setStatus("");
     setIsLoading(true);
 
-    const redirectTo = `${window.location.origin}/auth/callback?next=/dashboard`;
+    const redirectTo = buildAuthCallbackUrl("/dashboard");
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
