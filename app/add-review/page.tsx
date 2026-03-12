@@ -267,7 +267,7 @@ export default function AddReviewPage() {
         throw new Error(data.error ?? "Failed to add review.");
       }
 
-      router.push("/dashboard");
+     router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add review.");
     } finally {

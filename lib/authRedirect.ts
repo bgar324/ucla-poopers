@@ -1,19 +1,23 @@
-const DEFAULT_NEXT_PATH = "/dashboard";
+const DEFAULT_POST_AUTH_PATH = "/dashboard";
 
 function getSafeNextPath(nextPath: string) {
-  return nextPath.startsWith("/") ? nextPath : "/dashboard";
+  return nextPath.startsWith("/") ? nextPath : DEFAULT_POST_AUTH_PATH;
 }
 
-export function buildAuthCallbackUrl(nextPath = DEFAULT_NEXT_PATH) {
+export const AUTH_CALLBACK_PATH = "/auth/callback";
+export { DEFAULT_POST_AUTH_PATH };
+
+export function buildAuthCallbackUrl(nextPath = DEFAULT_POST_AUTH_PATH) {
   const callbackUrl = new URL(
-    "/auth/callback",
+    AUTH_CALLBACK_PATH,
     typeof window === "undefined"
       ? "http://localhost:3000"
-      : window.location.origin,
+      : window.location.origin
   );
 
   const safeNextPath = getSafeNextPath(nextPath);
-  if (safeNextPath !== DEFAULT_NEXT_PATH) {
+
+  if (safeNextPath !== DEFAULT_POST_AUTH_PATH) {
     callbackUrl.searchParams.set("next", safeNextPath);
   }
 

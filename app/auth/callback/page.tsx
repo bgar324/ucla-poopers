@@ -1,5 +1,6 @@
 "use client";
 
+import { DEFAULT_POST_AUTH_PATH } from "@/lib/authRedirect";
 import { syncUserWithToken } from "@/lib/syncUser";
 import supabase from "@/supabaseClient";
 import { useRouter } from "next/navigation";
@@ -7,7 +8,7 @@ import { useEffect, useState } from "react";
 
 function getNextPath(path: string | null): string {
   if (!path || !path.startsWith("/")) {
-    return "/dashboard";
+    return DEFAULT_POST_AUTH_PATH;
   }
   return path;
 }
