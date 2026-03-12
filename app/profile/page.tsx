@@ -1,6 +1,7 @@
 "use client";
 
 import supabase from "@/supabaseClient";
+import { BADGE_META } from "@/lib/badges";
 import { useRouter } from "next/navigation";
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import ToiletBG from "../components/ToiletBG";
@@ -27,11 +28,7 @@ interface EnrollmentState {
 
 const AVATAR_BUCKET = "avatars";
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
-const ALLOWED_AVATAR_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
+const ALLOWED_AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 function buildAvatarPath(userId: string, file: File) {
   const rawExtension = file.name.split(".").pop()?.toLowerCase();
@@ -78,6 +75,7 @@ export default function ProfilePage() {
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [badges, setBadges] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
@@ -151,6 +149,14 @@ export default function ProfilePage() {
       setFirstName(data.user.firstName);
       setLastName(data.user.lastName);
       setUsername(data.user.username);
+
+      const { data: badgeData } = await supabase
+        .from("badges")
+        .select("badge_type")
+        .eq("user_id", session.user.id);
+      setBadges(
+        (badgeData ?? []).map((b: { badge_type: string }) => b.badge_type),
+      );
 
       await loadMfaState();
 
@@ -229,9 +235,7 @@ export default function ProfilePage() {
       }
     } catch (error) {
       const message =
-        error instanceof Error
-          ? error.message
-          : "Profile photo upload failed.";
+        error instanceof Error ? error.message : "Profile photo upload failed.";
 
       void supabase.storage.from(AVATAR_BUCKET).remove([nextAvatarPath]);
       setErrorMessage(message);
@@ -596,6 +600,27 @@ export default function ProfilePage() {
                 {errorMessage}
               </p>
             ) : null}
+          </section>
+
+          <section className="rounded-xl bg-rose-100 p-8 shadow-lg">
+            <h2 className="font-gasoek text-2xl text-amber-900">BADGES</h2>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {badges.length === 0 ? (
+                <p className="font-rubik text-sm text-gray-500">
+                  No badges yet. Start reviewing!
+                </p>
+              ) : (
+                badges.map((badge) => (
+                  <div
+                    key={badge}
+                    className="flex items-center gap-2 rounded-xl bg-amber-900 px-4 py-2 text-white font-rubik text-sm shadow"
+                  >
+                    <span>{BADGE_META[badge]?.emoji ?? "🏅"}</span>
+                    <span>{BADGE_META[badge]?.label ?? badge}</span>
+                  </div>
+                ))
+              )}
+            </div>
           </section>
 
           <section className="rounded-xl bg-rose-100 p-8 shadow-lg">

@@ -1,6 +1,9 @@
 "use client";
 
-import { buildAuthCallbackUrl } from "@/lib/authRedirect";
+import {
+  buildAuthCallbackUrl,
+  DEFAULT_POST_AUTH_PATH,
+} from "@/lib/authRedirect";
 import { syncUserWithToken } from "@/lib/syncUser";
 import supabase from "@/supabaseClient";
 import { useRouter } from "next/navigation";
@@ -40,12 +43,11 @@ export default function SignUpForm({ onToggle }: SignUpFormProps) {
     setIsLoading(true);
 
     try {
-      const redirectTo = buildAuthCallbackUrl("/dashboard");
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: redirectTo,
+          emailRedirectTo: buildAuthCallbackUrl(),
           data: {
             first_name: firstName,
             last_name: lastName,
@@ -67,7 +69,7 @@ export default function SignUpForm({ onToggle }: SignUpFormProps) {
           email,
           twoFactorEnabled: false,
         });
-        router.replace("/dashboard");
+        router.replace(DEFAULT_POST_AUTH_PATH);
         return;
       }
 
@@ -80,17 +82,16 @@ export default function SignUpForm({ onToggle }: SignUpFormProps) {
       setIsLoading(false);
     }
   };
-
+  
   const handleGoogleSignUp = async () => {
     setErrorMessage("");
     setStatus("");
     setIsLoading(true);
 
-    const redirectTo = buildAuthCallbackUrl("/dashboard");
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo,
+        redirectTo: buildAuthCallbackUrl(),
       },
     });
 
@@ -114,7 +115,9 @@ export default function SignUpForm({ onToggle }: SignUpFormProps) {
 
         <div className="flex flex-row gap-2">
           <div>
-            <label className="block text-sm text-gray-500 mb-1">First Name</label>
+            <label className="block text-sm text-gray-500 mb-1">
+              First Name
+            </label>
             <input
               type="text"
               value={firstName}
@@ -125,7 +128,9 @@ export default function SignUpForm({ onToggle }: SignUpFormProps) {
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-500 mb-1">Last Name</label>
+            <label className="block text-sm text-gray-500 mb-1">
+              Last Name
+            </label>
             <input
               type="text"
               value={lastName}
@@ -245,7 +250,9 @@ export default function SignUpForm({ onToggle }: SignUpFormProps) {
         </button>
 
         {status ? (
-          <p className="font-rubik text-sm text-amber-800 text-center">{status}</p>
+          <p className="font-rubik text-sm text-amber-800 text-center">
+            {status}
+          </p>
         ) : null}
 
         {errorMessage ? (
