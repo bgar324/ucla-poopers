@@ -938,7 +938,7 @@ export default function PoopersProfilePage() {
                       filteredFeedActivities.map((activity) => (
                         <article
                           key={activity.id}
-                          className="rounded-[1.75rem] border border-amber-900/15 bg-white/85 p-5 shadow-[0_18px_45px_rgba(120,53,15,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_55px_rgba(120,53,15,0.12)]"
+                          className="rounded-[1.75rem] border border-amber-900/15 bg-white/85 p-5 shadow-[0_18px_45px_rgba(120,53,15,0.08)] transition hover:shadow-[0_24px_55px_rgba(120,53,15,0.12)]"
                         >
                           <div className="flex items-start gap-4">
                             <Avatar
