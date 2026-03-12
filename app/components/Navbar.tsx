@@ -9,6 +9,7 @@ export default function Navbar() {
   const navItems = [
     { name: "Dashboard", href: "/dashboard" },
     { name: "Poopers", href: "/poopers" },
+    { name: "Add Review", href: "/add-review" },
     { name: "My Profile", href: "/profile" },
   ]
 

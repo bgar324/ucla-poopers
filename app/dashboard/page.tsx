@@ -375,13 +375,7 @@ export default function Dashboard() {
                 {getFilterLabel(activeFilter)}
                 {selectedBuilding !== "all" ? ` • ${selectedBuilding}` : ""}
               </p>
-              <button
-                type="button"
-                onClick={() => router.push("/add-review")}
-                className="mt-4 w-full rounded-full bg-amber-900 px-4 py-2 font-semibold text-white hover:bg-amber-800 cursor-pointer"
-              >
-                Add Review
-              </button>
+
             </div>
 
             <FilterDropdown
@@ -474,6 +468,13 @@ export default function Dashboard() {
             {sidebarSpots.length === 0 ? (
               <p className="rounded-xl border border-dashed border-amber-900/50 bg-amber-50 p-4 font-rubik text-sm text-gray-600">
                 No spots match your search and filter yet.
+                <button 
+                className ="hover:cursor-pointer"
+                type="button"
+                onClick={() => router.push("/add-bathroom")}
+                > Want to add a new bathroom?  {" "} 
+                  <span className = "underline hover:text-gray-500"> Click here. </span>
+                </button>
               </p>
             ) : null}
           </div>

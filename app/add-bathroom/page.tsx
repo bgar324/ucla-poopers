@@ -279,7 +279,7 @@ export default function AddReviewPage() {
     <main className="min-h-screen bg-amber-50 flex items-center justify-center p-4">
       <ToiletBG />
       <div className="w-full max-w-2xl z-10 rounded-xl border border-amber-900/10 bg-rose-100/95 p-8 shadow-[0_28px_90px_rgba(120,53,15,0.12)] lg:p-10">
-        <h1 className="font-gasoek text-4xl mb-4 text-amber-900">Add Review</h1>
+        <h1 className="font-gasoek text-4xl mb-4 text-amber-900">Add Bathroom</h1>
 
         {error && <p className="text-red-600 mb-2">{error}</p>}
 
