@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  buildAuthCallbackUrl,
+  DEFAULT_POST_AUTH_PATH,
+} from "@/lib/authRedirect";
 import { syncUserWithToken } from "@/lib/syncUser";
 import supabase from "@/supabaseClient";
 import { useRouter } from "next/navigation";
@@ -65,11 +69,11 @@ export default function LoginForm({ onToggle }: LoginFormProps) {
         assurance?.nextLevel === "aal2" && assurance.currentLevel !== "aal2";
 
       if (requiresMfa) {
-        router.replace("/auth/mfa?next=/dashboard");
+        router.replace(`/auth/mfa?next=${encodeURIComponent(DEFAULT_POST_AUTH_PATH)}`);
         return;
       }
 
-      router.replace("/dashboard");
+      router.replace(DEFAULT_POST_AUTH_PATH);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Login failed. Try again.";
@@ -84,11 +88,10 @@ export default function LoginForm({ onToggle }: LoginFormProps) {
     setStatus("");
     setIsLoading(true);
 
-    const redirectTo = `${window.location.origin}/auth/callback?next=/dashboard`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo,
+        redirectTo: buildAuthCallbackUrl(),
       },
     });
 
