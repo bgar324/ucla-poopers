@@ -8,8 +8,9 @@ Locally, the app supports:
 - Optional Google OAuth
 - Bathroom browsing on the dashboard and map
 - Review creation and editing
+- New bathroom creation through the dedicated add-bathroom flow
 - Social features on the `poopers` page
-- Profile management and avatar uploads
+- Profile management, avatar uploads, and badge display
 - Gemini-generated bathroom review summaries when configured
 
 ---
@@ -33,6 +34,7 @@ The application follows a typical full-stack web architecture.
 ### Authentication & Storage
 - **Supabase Auth** manages user authentication and sessions
 - **Supabase Storage** stores user avatars
+- **Supabase Postgres** also stores badge rows used by the profile page
 
 ### AI Integration (Optional)
 - **Google Gemini API** generates summary descriptions of bathrooms based on reviews.
@@ -61,10 +63,15 @@ The application requires authentication to perform actions such as writing revie
 
 2. **User Profiles**
    - Profile customization including avatars and user metadata.
+   - Badge display on the profile page.
    - Optional multi-factor authentication (MFA).
 
 3. **AI Bathroom Summaries**
    - Gemini AI generates review summaries for bathrooms with multiple reviews.
+
+4. **Review Milestone Badges**
+   - Users unlock badges after hitting review milestones.
+   - Current badge slugs are `first_flush`, `regular`, and `top_reviewer`.
 
 ---
 
@@ -185,6 +192,22 @@ https://YOUR_SUPABASE_PROJECT_REF.supabase.co/auth/v1/callback
 ### Supabase Storage
 A **public bucket named `avatars`** must exist for profile photo uploads.
 
+### Supabase `badges` Table
+Required for profile badge display and automatic review milestone badge awards.
+
+The current code expects a table named `badges` with at least:
+
+```sql
+create table if not exists public.badges (
+  user_id uuid not null,
+  badge_type text not null
+);
+```
+
+`user_id` should store the authenticated Supabase user id. `badge_type` stores the badge slug shown on the profile page.
+
+This table is currently accessed through Supabase directly in `app/profile/page.tsx` and `app/api/reviews/route.ts`, so it is not created by the Prisma migrations in this repo.
+
 ### Supabase MFA
 Optional but required for `/auth/mfa` and profile two-factor authentication.
 
@@ -222,8 +245,10 @@ http://localhost:3000
 - If a valid session exists, users are redirected to `/dashboard`.
 - Email signup may require email confirmation depending on Supabase configuration.
 - If Google OAuth is enabled, users can sign in through Google.
+- OAuth and confirmation-email flows pass through `/auth/callback` before returning to the dashboard.
 - Bathroom data will appear immediately if the database already contains records.
-- If the database is empty, bathrooms can be created through the **Add Review** flow.
+- If the database is empty, bathrooms can be created through the **Add Review** or **Add Bathroom** flows.
+- Badge chips appear on `/profile` when matching rows exist in the Supabase `badges` table.
 - Gemini-backed summaries appear only when Gemini is configured and a bathroom has at least two reviews; otherwise the app falls back to non-AI bathroom detail text.
 
 ---
@@ -235,9 +260,11 @@ http://localhost:3000
 | `/` | Login and sign-up page |
 | `/dashboard` | Main bathroom browsing dashboard |
 | `/map` | Dedicated campus bathroom map |
+| `/add-bathroom` | Create a new bathroom entry with an initial review |
 | `/add-review` | Create or add a bathroom review |
 | `/poopers` | Social browsing of users and reviews |
 | `/profile` | Profile management and avatar uploads |
+| `/auth/mfa` | MFA verification step when a user has TOTP enabled |
 
 ---
 
@@ -247,6 +274,12 @@ http://localhost:3000
 
 ```bash
 npm run build
+```
+
+### Run typecheck only
+
+```bash
+npm run typecheck
 ```
 
 ### Start production server
@@ -270,6 +303,7 @@ This script generates summaries for bathrooms that already have reviews.
 - Prisma connects to PostgreSQL through credentials supplied in environment variables.
 - Authentication checks for protected operations use Supabase bearer tokens.
 - Avatar uploads require the `avatars` storage bucket to exist and be publicly readable.
+- Badge reads and writes currently depend on the separate Supabase `badges` table rather than Prisma-managed models.
 
 ---
 
