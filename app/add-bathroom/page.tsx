@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import Link from "next/link"
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import supabase from "@/supabaseClient";
 import { ChevronDown, Plus } from "lucide-react";
 import ToiletBG from "../components/ToiletBG";
+import Rating from "../components/Rating";
 
 interface BathroomOption {
   id: string;
@@ -283,198 +285,182 @@ export default function AddReviewPage() {
   };
 
   return (
-    <main className="min-h-screen bg-amber-50 flex items-center justify-center p-4">
-      <ToiletBG />
-      <div className="w-full max-w-2xl z-10 rounded-xl border border-amber-900/10 bg-rose-100/95 p-8 shadow-[0_28px_90px_rgba(120,53,15,0.12)] lg:p-10">
-        <h1 className="font-gasoek text-4xl mb-4 text-amber-900">Add Bathroom</h1>
+  <main className="min-h-screen bg-amber-50 flex items-center justify-center p-4">
+    <ToiletBG />
 
-        {error && <p className="text-red-600 mb-2">{error}</p>}
+    <div className="w-full max-w-2xl z-10 rounded-xl border border-amber-900/10 bg-rose-100/95 p-10 shadow-[0_28px_90px_rgba(120,53,15,0.12)]">
 
-        {/* Bathroom selector */}
-        <div className="relative mb-4" ref={dropdownRef}>
-          <label className="block mb-1 text-sm font-medium text-slate-600">Bathroom</label>
-          <div className="relative">
-            <input
-              type="text"
-              className="w-full border border-amber-900 rounded-lg px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-amber-900"
-              placeholder="Search or select a bathroom..."
-              value={addNewBathroom ? name : bathroomSearch}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (addNewBathroom) {
-                  setName(v);
-                } else {
-                  setBathroomSearch(v);
-                  setSelectedBathroomId(null);
-                  setDropdownOpen(true);
-                }
-              }}
-              onFocus={() => setDropdownOpen(true)}
-            />
-            <button
-              type="button"
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
-            >
-              <ChevronDown size={18} />
-            </button>
-          </div>
+      {/* HEADER */}
+      <h1 className="font-gasoek text-4xl text-amber-900">Add Bathroom</h1>
+      <p className="font-rubik text-sm text-amber-800/70 mt-1">
+        Add a new bathroom and leave the first review.
+      </p>
 
-          {dropdownOpen && !addNewBathroom && (
-            <div className="absolute z-10 mt-1 w-full max-w-lg rounded-lg border border-amber-200 bg-white shadow-lg max-h-60 overflow-auto">
-              {loadingBathrooms ? (
-                <div className="p-3 text-gray-500 text-sm">Loading bathrooms...</div>
-              ) : (
-                <>
-                  {filteredBathrooms.map((b) => (
-                    <button
-                      key={b.id}
-                      type="button"
-                      className="w-full text-left px-3 py-2 hover:bg-amber-50 flex flex-col"
-                      onClick={() => handleSelectBathroom(b)}
-                    >
-                      <span className="font-medium text-amber-900">{b.name}</span>
-                      <span className="text-sm text-gray-600">
-                        {b.building} • Floor {b.floor} • {b.typeLabel ?? formatBathroomType(b.type)}
-                      </span>
-                    </button>
-                  ))}
-                  {showAddNewOption && (
-                    <button
-                      type="button"
-                      className="w-full text-left px-3 py-2 hover:bg-amber-50 flex items-center gap-2 text-amber-900 font-medium border-t border-amber-100"
-                      onClick={handleAddNewBathroom}
-                    >
-                      <Plus size={16} />
-                      {searchLower
-                        ? `Add new bathroom "${bathroomSearch.trim()}"`
-                        : "Add a new bathroom"}
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-          )}
+      {error && (
+        <p className="text-red-600 mt-3 font-rubik text-sm">{error}</p>
+      )}
 
-          {selectedBathroom && !addNewBathroom && (
-            <p className="mt-1 text-sm text-gray-600">
-              Selected: {selectedBathroom.name} ({selectedBathroom.building})
-            </p>
-          )}
-        </div>
+      {/* BATHROOM DETAILS */}
+      {addNewBathroom && (
+        <div className="mt-6 rounded-lg border border-amber-900/10 bg-white/40 p-5">
 
-        {/* New bathroom form (when "add new" is chosen) */}
-        {addNewBathroom && (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <p className="text-sm font-medium text-amber-900">New bathroom details</p>
-            <p className="mt-1 text-sm text-amber-800/80">
-              The map starts from your current location. Drag the pin until it sits exactly where the restroom entrance should be, then confirm it.
-            </p>
+          <p className="font-rubik text-sm font-semibold text-amber-900 mb-4">
+            New Bathroom Details
+          </p>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
+
+            <div>
+              <label className="mb-1 block text-sm font-rubik font-medium text-amber-900">
+                Bathroom Name
+              </label>
               <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                placeholder="Bathroom name"
+                className="w-full rounded-lg border border-amber-900 px-3 py-2 font-rubik focus:outline-none focus:ring-2 focus:ring-amber-900"
+                placeholder="e.g. Boelter"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-rubik font-medium text-amber-900">
+                Building
+              </label>
               <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                placeholder="Building"
+                className="w-full rounded-lg border border-amber-900 px-3 py-2 font-rubik focus:outline-none focus:ring-2 focus:ring-amber-900"
+                placeholder="Building name"
                 value={building}
                 onChange={(e) => setBuilding(e.target.value)}
               />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-rubik font-medium text-amber-900">
+                Floor
+              </label>
               <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                placeholder="Floor"
                 type="number"
+                className="w-full rounded-lg border border-amber-900 px-3 py-2 font-rubik focus:outline-none focus:ring-2 focus:ring-amber-900"
+                placeholder="Floor number"
                 value={floor}
                 onChange={(e) => setFloor(Number(e.target.value) || "")}
               />
-              <div>
-                <label className="mb-1 block text-sm text-gray-700">Type</label>
-                <select
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
-                  value={type}
-                  onChange={(e) => setType(e.target.value)}
-                >
-                  <option value="">Select type...</option>
-                  {BATHROOM_TYPES.map((bt) => (
-                    <option key={bt.value} value={bt.value}>
-                      {bt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
 
-            <div className="mt-4">
-              <BathroomLocationPicker
-                latitude={latitude}
-                longitude={longitude}
-                isConfirmed={locationConfirmed}
-                onLocationChange={handleLocationChange}
-                onConfirm={() => {
-                  setLocationConfirmed(true);
-                  setError("");
-                }}
-              />
+            <div>
+              <label className="mb-1 block text-sm font-rubik font-medium text-amber-900">
+                Bathroom Type
+              </label>
+              <select
+                className="w-full rounded-lg border border-amber-900 px-3 py-2 font-rubik focus:outline-none focus:ring-2 focus:ring-amber-900"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+              >
+                <option value="">Select type...</option>
+                {BATHROOM_TYPES.map((bt) => (
+                  <option key={bt.value} value={bt.value}>
+                    {bt.label}
+                  </option>
+                ))}
+              </select>
             </div>
-
-            <button
-              type="button"
-              className="mt-4 text-sm text-amber-800 underline"
-              onClick={handleCancelNewBathroom}
-            >
-              Cancel – choose existing bathroom
-            </button>
           </div>
-        )}
 
-        {/* Review fields */}
-        <div className="mb-2">
-          <label className="block mb-1 text-sm font-medium text-slate-600">Rating (1–5)</label>
-          <input
-            className="w-full border border-amber-900 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-900"
-            type="number"
-            min={1}
-            max={5}
+          {/* LOCATION PICKER */}
+          <div className="mt-6">
+            <p className="font-rubik text-sm font-semibold text-amber-900 mb-2">
+              Location
+            </p>
+
+            <BathroomLocationPicker
+              latitude={latitude}
+              longitude={longitude}
+              isConfirmed={locationConfirmed}
+              onLocationChange={handleLocationChange}
+              onConfirm={() => {
+                setLocationConfirmed(true);
+                setError("");
+              }}
+            />
+          </div>
+
+          <Link
+            href="/add-review"
+            className="mt-4 inline-block text-sm font-rubik text-amber-800 underline hover:text-amber-900"
+          >
+            Cancel – choose existing bathroom
+          </Link>
+        </div>
+      )}
+
+      {/* DIVIDER */}
+      <div className="my-7 border-t border-amber-900/10" />
+
+      {/* REVIEW SECTION */}
+      <div className="rounded-lg border border-amber-900/10 bg-white/40 p-5">
+
+        <p className="font-rubik text-sm font-semibold text-amber-900 mb-4">
+          Your Review
+        </p>
+
+        {/* POOP RATING */}
+        <div className="mb-5">
+          <label className="block mb-2 text-sm font-rubik font-medium text-amber-900">
+            Rating
+          </label>
+
+          <Rating
             value={rating}
-            onChange={(e) => setRating(Number(e.target.value) || "")}
+            interactive
+            onChange={(val) => setRating(val)}
           />
         </div>
-        <div className="mb-4">
-          <label className="block mb-1 text-sm font-medium text-slate-600">Review (optional)</label>
+
+        {/* REVIEW TEXT */}
+        <div>
+          <label className="block mb-1 text-sm font-rubik font-medium text-amber-900">
+            Review (optional)
+          </label>
+
           <textarea
             maxLength={200}
-            className="w-full border border-amber-900 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-900"
-            placeholder="Your experience..."
             rows={3}
+            className="w-full rounded-lg border border-amber-900 px-3 py-2 font-rubik focus:outline-none focus:ring-2 focus:ring-amber-900"
+            placeholder="How was the bathroom?"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
-          <p className="text-sm text-gray-500">
-              {description.length}/200
+
+          <p
+            className={`text-xs text-right mt-1 font-rubik ${
+              description.length > 180
+                ? "text-red-500"
+                : "text-amber-800/70"
+            }`}
+          >
+            {description.length}/200
           </p>
-        
         </div>
-
-        <button
-          className="w-full bg-amber-900 text-white py-2 rounded-lg font-semibold hover:cursor-pointer hover:bg-amber-800"
-          onClick={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? "Saving..." : "Add Bathroom"}
-        </button>
-
-        <button
-          type="button"
-          className="w-full mt-2 text-amber-900 font-medium hover:cursor-pointer hover:text-amber-800"
-          onClick={() => router.push("/dashboard")}
-        >
-          Back to Dashboard
-        </button>
       </div>
-    </main>
-  );
+
+      {/* SUBMIT BUTTON */}
+      <button
+        className="w-full mt-6 bg-amber-900 text-white py-2.5 rounded-lg font-rubik font-semibold transition hover:bg-amber-800 active:scale-[0.98] hover:cursor-pointer"
+        onClick={handleSubmit}
+        disabled={loading}
+      >
+        {loading ? "Saving..." : "Add Bathroom"}
+      </button>
+
+      {/* BACK BUTTON */}
+      <button
+        type="button"
+        className="w-full mt-3 text-amber-900 font-rubik font-medium hover:text-amber-800 hover:cursor-pointer"
+        onClick={() => router.push("/dashboard")}
+      >
+        Back to Dashboard
+      </button>
+    </div>
+  </main>
+);
 }
