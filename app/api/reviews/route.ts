@@ -3,6 +3,7 @@ import { generateBathroomSummary, MIN_REVIEWS_FOR_AI_SUMMARY } from "@/lib/gemin
 import prisma from "@/lib/prisma";
 import { awardBadge } from "@/lib/badges";
 import { Prisma } from "@prisma/client";
+import supabase from "@/supabaseClient";
 
 function formatBathroomType(type: string): string {
   switch (type) {
@@ -324,6 +325,17 @@ export async function DELETE(req: NextRequest) {
       await refreshBathroomSummary(existingReview.bathroom_id);
     } catch (summaryError) {
       console.error("REVIEW SUMMARY REFRESH ERROR:", summaryError);
+    }
+
+    const reviewCount = await prisma.review.count({ where: { user_id: user.id } });
+    if (reviewCount < 15) {
+      await supabase.from("badges").delete().eq("user_id", supabaseAuthId).eq("badge_type", "top_reviewer");
+    }
+    if (reviewCount < 5) {
+      await supabase.from("badges").delete().eq("user_id", supabaseAuthId).eq("badge_type", "regular");
+    }
+    if (reviewCount < 1) {
+      await supabase.from("badges").delete().eq("user_id", supabaseAuthId).eq("badge_type", "first_flush");
     }
 
     return NextResponse.json({ success: true, reviewId: existingReview.id });

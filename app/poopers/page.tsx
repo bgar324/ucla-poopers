@@ -275,8 +275,6 @@ export default function PoopersProfilePage() {
     }
     void fetchBadges()
   }, [displayedUser])
-  console.log("displayedUser:", displayedUser)
-  console.log("displayedUserBadges:", displayedUserBadges)
 
   const normalizedQuery = searchQuery.trim().toLowerCase()
 
@@ -496,6 +494,13 @@ export default function PoopersProfilePage() {
         )
         setReviewPendingDelete(null)
         await loadReviews()
+        if (displayedUser) {
+          const { data: badgeData } = await supabase
+            .from("badges")
+            .select("badge_type")
+            .eq("user_id", displayedUser.supabaseAuthId)
+          setDisplayedUserBadges((badgeData ?? []).map((b: { badge_type: string }) => b.badge_type))
+        }
       } finally {
         setDeletingReviewId(null)
       }
