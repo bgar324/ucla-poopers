@@ -780,6 +780,7 @@ export default function BathroomDetailPanel({
 
                 <div className="mt-4 border-t border-amber-900/10 pt-4">
                   <textarea
+                    maxLength={200}
                     ref={textareaRef}
                     value={reviewDescription}
                     onChange={(event) => setReviewDescription(event.target.value)}
@@ -793,6 +794,10 @@ export default function BathroomDetailPanel({
                       {reviewError}
                     </p>
                   ) : null}
+
+                  <p className="text-sm text-gray-500">
+                    {reviewDescription.length}/200
+                  </p>
 
                   <div className="mt-4 flex justify-end gap-3">
                     <button

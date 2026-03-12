@@ -439,13 +439,18 @@ export default function AddReviewPage() {
         <div className="mb-4">
           <label className="block mb-1 text-sm font-medium text-slate-600">Review (optional)</label>
           <textarea
+            maxLength={200}
             className="w-full border border-amber-900 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-900"
             placeholder="Your experience..."
             rows={3}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
+          <p className="text-sm text-gray-500">
+            {description.length}/200
+        </p>
         </div>
+        
 
         <button
           className="w-full bg-amber-900 text-white py-2 rounded-lg font-semibold hover:cursor-pointer hover:bg-amber-800"
