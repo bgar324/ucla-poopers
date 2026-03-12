@@ -48,7 +48,7 @@ export default function Navbar() {
         })}
         
         <div> 
-          <span className="rounded-full px-4 py-2 border border-amber-900 bg-amber-900 text-white hover:bg-amber-800 rounded-3xl"> 
+          <span className="rounded-full px-4 py-2 border border-amber-900 bg-amber-900 text-white hover:bg-amber-800 rounded-3xl cursor-pointer"> 
           <Link href="/add-review" className="font-rubik text-md text-white">
             Add Review
           </Link>
