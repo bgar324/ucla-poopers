@@ -638,9 +638,12 @@ export default function PoopersProfilePage() {
                 {displayedUserBadges.length > 0 && (
                   <div className="flex flex-wrap gap-2 justify-center mt-2">
                     {displayedUserBadges.map((badge) => (
-                      <div key={badge} className="flex items-center gap-1 rounded-full bg-amber-900 px-3 py-1 text-white text-xs">
+                      <div key={badge} className="relative group flex items-center gap-1 rounded-full bg-amber-900 px-3 py-1 text-white text-xs cursor-default">
                         <span>{BADGE_META[badge]?.emoji ?? "🏅"}</span>
                         <span>{BADGE_META[badge]?.label ?? badge}</span>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 rounded-xl bg-white text-amber-900 text-xs px-3 py-2 shadow-lg border border-amber-900/10 text-center z-50">
+                          {BADGE_META[badge]?.description ?? badge}
+                        </div>
                       </div>
                     ))}
                   </div>

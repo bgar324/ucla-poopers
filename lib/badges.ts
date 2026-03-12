@@ -1,10 +1,10 @@
 import supabase from "@/supabaseClient";
 
-export const BADGE_META: Record<string, { emoji: string; label: string }> = {
-  first_flush: { emoji: "🚽", label: "First Flush" },
-  regular: { emoji: "⭐", label: "Regular" },
-  top_reviewer: { emoji: "🏆", label: "Top Reviewer" },
-  dev: { emoji: "💻", label: "Dev" },
+export const BADGE_META: Record<string, { emoji: string; label: string; description: string }> = {
+  first_flush: { emoji: "🚽", label: "First Flush", description: "Everyone has to start somewhere. Yours happened to be a bathroom."},
+  regular: { emoji: "⭐", label: "Regular", description: "You've claimed 5 thrones. People are starting to talk." },
+  top_reviewer: { emoji: "🏆", label: "Top Reviewer", description: "15 reviews. At this point you might just live here." },
+  dev: { emoji: "💻", label: "Dev", description: "Responsible for all the bugs. And the bathrooms." },
 };
 
 export async function awardBadge(supabaseAuthId: string, badgeType: string) {

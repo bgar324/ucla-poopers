@@ -606,21 +606,24 @@ setBadges((badgeData ?? []).map((b: { badge_type: string }) => b.badge_type));
             ) : null}
           </section>
 
-<section className="rounded-xl bg-rose-100 p-8 shadow-lg">
-  <h2 className="font-gasoek text-2xl text-amber-900">BADGES</h2>
-  <div className="mt-4 flex flex-wrap gap-3">
-    {badges.length === 0 ? (
-      <p className="font-rubik text-sm text-gray-500">No badges yet. Start reviewing!</p>
-    ) : (
-      badges.map((badge) => (
-        <div key={badge} className="flex items-center gap-2 rounded-xl bg-amber-900 px-4 py-2 text-white font-rubik text-sm shadow">
-          <span>{BADGE_META[badge]?.emoji ?? "🏅"}</span>
-          <span>{BADGE_META[badge]?.label ?? badge}</span>
-        </div>
-      ))
-    )}
-  </div>
-</section>
+          <section className="rounded-xl bg-rose-100 p-8 shadow-lg">
+            <h2 className="font-gasoek text-2xl text-amber-900">BADGES</h2>
+            <div className="mt-4 flex flex-wrap gap-3">
+              {badges.length === 0 ? (
+                <p className="font-rubik text-sm text-gray-500">No badges yet. Start reviewing!</p>
+              ) : (
+                badges.map((badge) => (
+                  <div key={badge} className="relative group flex items-center gap-2 rounded-xl bg-amber-900 px-4 py-2 text-white font-rubik text-sm shadow cursor-default">
+                    <span>{BADGE_META[badge]?.emoji ?? "🏅"}</span>
+                    <span>{BADGE_META[badge]?.label ?? badge}</span>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 rounded-xl bg-white text-amber-900 text-xs px-3 py-2 shadow-lg border border-amber-900/10 text-center z-50">
+                      {BADGE_META[badge]?.description ?? badge}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
 
           <section className="rounded-xl bg-rose-100 p-8 shadow-lg">
             <h2 className="font-gasoek text-2xl text-amber-900">
