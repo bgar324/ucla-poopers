@@ -139,18 +139,22 @@ export async function GET(
       primaryReview,
     );
     const createdAt = bathroom.createdAt;
+    const cachedSummary =
+      typeof bathroom.reviewSummary === "string"
+        ? bathroom.reviewSummary.trim()
+        : "";
+    const hasAnyCachedSummary = cachedSummary.length > 0;
 
     let detail = fallbackDetail;
 
     const canUseAiSummary = reviewCount >= MIN_REVIEWS_FOR_AI_SUMMARY;
     const hasCachedSummary =
       canUseAiSummary &&
-      typeof bathroom.reviewSummary === "string" &&
-      bathroom.reviewSummary.trim().length > 0 &&
+      hasAnyCachedSummary &&
       bathroom.reviewSummaryReviewCount === reviewCount;
 
     if (hasCachedSummary) {
-      detail = bathroom.reviewSummary!.trim();
+      detail = cachedSummary;
     } else if (canUseAiSummary) {
       try {
         const summary = await generateBathroomSummary({
@@ -175,8 +179,14 @@ export async function GET(
               reviewSummaryUpdatedAt: new Date(),
             },
           });
+        } else if (hasAnyCachedSummary) {
+          detail = cachedSummary;
         }
       } catch (summaryError) {
+        if (hasAnyCachedSummary) {
+          // Preserve the last stored summary whenever Gemini is unavailable.
+          detail = cachedSummary;
+        }
         console.error("BATHROOM SUMMARY ERROR:", summaryError);
       }
     }
