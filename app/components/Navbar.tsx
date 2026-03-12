@@ -9,7 +9,6 @@ export default function Navbar() {
   const navItems = [
     { name: "Dashboard", href: "/dashboard" },
     { name: "Poopers", href: "/poopers" },
-    { name: "Add Review", href: "/add-review" },
     { name: "My Profile", href: "/profile" },
   ]
 
@@ -31,7 +30,6 @@ export default function Navbar() {
             >
               {item.name}
 
-              {/* Animated underline */}
               <span
                 className={`
                   absolute left-0 bottom-0 h-[1.5px] w-full
@@ -48,6 +46,15 @@ export default function Navbar() {
             </Link>
           )
         })}
+        
+        <div> 
+          <span className="rounded-full px-4 py-2 border border-amber-900 bg-amber-900 text-white hover:bg-amber-800 rounded-3xl"> 
+          <Link href="/add-review" className="font-rubik text-md text-white">
+            Add Review
+          </Link>
+          </span>
+      </div>
+
       </div>
     </nav>
   )
