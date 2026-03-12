@@ -275,6 +275,8 @@ export default function PoopersProfilePage() {
     }
     void fetchBadges()
   }, [displayedUser])
+  console.log("displayedUser:", displayedUser)
+  console.log("displayedUserBadges:", displayedUserBadges)
 
   const normalizedQuery = searchQuery.trim().toLowerCase()
 

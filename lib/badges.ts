@@ -4,6 +4,7 @@ export const BADGE_META: Record<string, { emoji: string; label: string }> = {
   first_flush: { emoji: "🚽", label: "First Flush" },
   regular: { emoji: "⭐", label: "Regular" },
   top_reviewer: { emoji: "🏆", label: "Top Reviewer" },
+  dev: { emoji: "💻", label: "Dev" },
 };
 
 export async function awardBadge(supabaseAuthId: string, badgeType: string) {
