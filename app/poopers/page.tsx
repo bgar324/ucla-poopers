@@ -7,8 +7,10 @@ import Avatar from "../components/UserAvatar"
 import UserCard from "../components/UserCard"
 import BathroomDetailPanel from "../components/BathroomDetailPanel"
 import ConfirmActionModal from "../components/ConfirmActionModal"
+import SocialConnectionsModal from "../components/SocialConnectionsModal"
 import SpotCard from "../components/SpotCard"
 import supabase from "@/supabaseClient"
+import { BADGE_META } from "@/lib/badges"
 import { useRouter } from "next/navigation"
 import { Pencil, Trash2 } from "lucide-react"
 
@@ -20,15 +22,20 @@ interface ProfileRecord {
   lastName: string
   avatarUrl: string | null
   twoFactorEnabled: boolean
+  followingCount: number
+  followerCount: number
 }
 
 interface UserRecord {
   id: string
+  supabaseAuthId: string
   username: string
   firstName: string
   lastName: string
   avatarUrl: string | null
   reviewCount: number
+  followingCount: number
+  followerCount: number
 }
 
 interface ReviewRecord {
@@ -49,12 +56,14 @@ interface ReviewRecord {
   }
 }
 
+type SocialListKind = "followers" | "following"
+
 export default function PoopersProfilePage() {
   const router = useRouter()
   const [activeFilter, setActiveFilter] = useState("top")
   const [searchQuery, setSearchQuery] = useState("")
   const [profile, setProfile] = useState<ProfileRecord | null>(null)
-  const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [reviews, setReviews] = useState<ReviewRecord[]>([])
   const [users, setUsers] = useState<UserRecord[]>([])
   const [followingUsers, setFollowingUsers] = useState<UserRecord[]>([])
@@ -68,8 +77,17 @@ export default function PoopersProfilePage() {
   const [reviewPendingDelete, setReviewPendingDelete] = useState<ReviewRecord | null>(null)
   const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null)
   const [isLoadingReviews, setIsLoadingReviews] = useState(true)
+  const [displayedUserBadges, setDisplayedUserBadges] = useState<string[]>([])
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [isLoadingFollowing, setIsLoadingFollowing] = useState(true)
+  const [socialListView, setSocialListView] = useState<{
+    kind: SocialListKind
+    userId: string
+    username: string
+  } | null>(null)
+  const [socialListUsers, setSocialListUsers] = useState<UserRecord[]>([])
+  const [isLoadingSocialList, setIsLoadingSocialList] = useState(false)
+  const [socialListError, setSocialListError] = useState("")
 
   const filters = [
     { label: "Top", value: "top" },
@@ -112,44 +130,48 @@ export default function PoopersProfilePage() {
     setIsLoadingFollowing(false)
   }, [getAccessToken])
 
-  useEffect(() => {
-    let active = true
+  const loadProfile = useCallback(async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
 
-    const loadProfile = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (!session?.access_token) {
-        router.replace("/")
-        return
-      }
-
-      const response = await fetch("/api/profile", {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      })
-
-      if (!response.ok) {
-        return
-      }
-
-      const data = (await response.json()) as { user: ProfileRecord }
-
-      if (!active) {
-        return
-      }
-
-      setProfile(data.user)
+    if (!session?.access_token) {
+      router.replace("/")
+      return
     }
 
-    void loadProfile()
+    const response = await fetch("/api/profile", {
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    })
 
-    return () => {
-      active = false
+    if (!response.ok) {
+      return
     }
+
+    const data = (await response.json()) as { user: ProfileRecord }
+    setProfile(data.user)
   }, [router])
+
+  const loadUsers = useCallback(async () => {
+    setIsLoadingUsers(true)
+
+    const response = await fetch("/api/users")
+
+    if (!response.ok) {
+      setIsLoadingUsers(false)
+      return
+    }
+
+    const data = (await response.json()) as { users: UserRecord[] }
+    setUsers(data.users)
+    setIsLoadingUsers(false)
+  }, [])
+
+  useEffect(() => {
+    void loadProfile()
+  }, [loadProfile])
 
   const loadReviews = useCallback(async () => {
     setIsLoadingReviews(true)
@@ -171,75 +193,51 @@ export default function PoopersProfilePage() {
   }, [loadReviews])
 
   useEffect(() => {
-    let active = true
-
-    const loadUsers = async () => {
-      setIsLoadingUsers(true)
-
-      const response = await fetch("/api/users")
-
-      if (!response.ok) {
-        if (active) {
-          setIsLoadingUsers(false)
-        }
-        return
-      }
-
-      const data = (await response.json()) as { users: UserRecord[] }
-
-      if (!active) {
-        return
-      }
-
-      setUsers(data.users)
-      setIsLoadingUsers(false)
-    }
-
     void loadUsers()
-
-    return () => {
-      active = false
-    }
-  }, [])
+  }, [loadUsers])
 
   useEffect(() => {
     void loadFollowing()
   }, [loadFollowing])
 
   useEffect(() => {
-    if (!profile || users.length === 0 || selectedUser) {
-      return
+    if (profile && !selectedUserId) {
+      setSelectedUserId(profile.id)
+    }
+  }, [profile, selectedUserId])
+
+  const profileFallbackUser = useMemo(() => {
+    if (!profile) {
+      return null
     }
 
-    const matchingUser = users.find((user) => user.username === profile.username)
-
-    if (matchingUser) {
-      setSelectedUser(matchingUser)
-      return
-    }
-
-    setSelectedUser({
+    return {
       id: profile.id,
+      supabaseAuthId: profile.id,
       username: profile.username,
       firstName: profile.firstName,
       lastName: profile.lastName,
       avatarUrl: profile.avatarUrl,
       reviewCount: reviews.filter((review) => review.user.username === profile.username).length,
-    })
-  }, [profile, users, selectedUser, reviews])
+      followingCount: profile.followingCount,
+      followerCount: profile.followerCount,
+    }
+  }, [profile, reviews])
 
-  const displayedUser =
-    selectedUser ??
-    (profile
-      ? {
-          id: profile.id,
-          username: profile.username,
-          firstName: profile.firstName,
-          lastName: profile.lastName,
-          avatarUrl: profile.avatarUrl,
-          reviewCount: reviews.filter((review) => review.user.username === profile.username).length,
-        }
-      : null)
+  const displayedUser = useMemo(() => {
+    if (selectedUserId) {
+      return (
+        users.find((user) => user.id === selectedUserId) ??
+        (profileFallbackUser?.id === selectedUserId ? profileFallbackUser : null)
+      )
+    }
+
+    if (profile) {
+      return users.find((user) => user.id === profile.id) ?? profileFallbackUser
+    }
+
+    return null
+  }, [profile, profileFallbackUser, selectedUserId, users])
 
   const displayedUserReviews =
     displayedUser
@@ -265,6 +263,18 @@ export default function PoopersProfilePage() {
       setSelectedReview(null)
     }
   }, [displayedUserReviews, selectedReview])
+
+  useEffect(() => {
+    if (!displayedUser) return
+    const fetchBadges = async () => {
+      const { data: badgeData } = await supabase
+        .from("badges")
+        .select("badge_type")
+        .eq("user_id", displayedUser.supabaseAuthId)
+      setDisplayedUserBadges((badgeData ?? []).map((b: { badge_type: string }) => b.badge_type))
+    }
+    void fetchBadges()
+  }, [displayedUser])
 
   const normalizedQuery = searchQuery.trim().toLowerCase()
 
@@ -302,6 +312,103 @@ export default function PoopersProfilePage() {
     return new Set(followingUsers.map((user) => user.id))
   }, [followingUsers])
 
+  const canViewDisplayedUserConnections = useMemo(() => {
+    if (!profile || !displayedUser) {
+      return false
+    }
+
+    return profile.id === displayedUser.id || followedUserIds.has(displayedUser.id)
+  }, [displayedUser, followedUserIds, profile])
+
+  useEffect(() => {
+    if (!socialListView) {
+      return
+    }
+
+    let active = true
+
+    const load = async () => {
+      setIsLoadingSocialList(true)
+      setSocialListError("")
+      setSocialListUsers([])
+
+      const accessToken = await getAccessToken()
+
+      if (!accessToken) {
+        if (active) {
+          setIsLoadingSocialList(false)
+        }
+        router.replace("/")
+        return
+      }
+
+      const searchParams = new URLSearchParams({
+        list: socialListView.kind,
+        targetUserId: socialListView.userId,
+      })
+
+      const response = await fetch(`/api/follow?${searchParams.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      const data = (await response.json().catch(() => null)) as
+        | { users: UserRecord[]; error?: never }
+        | { error?: string }
+        | null
+
+      if (!active) {
+        return
+      }
+
+      if (!response.ok || !data || !("users" in data)) {
+        setSocialListUsers([])
+        setSocialListError(
+          data && "error" in data && data.error
+            ? data.error
+            : `Failed to load ${socialListView.kind}.`,
+        )
+        setIsLoadingSocialList(false)
+        return
+      }
+
+      setSocialListUsers(data.users)
+      setIsLoadingSocialList(false)
+    }
+
+    void load()
+
+    return () => {
+      active = false
+    }
+  }, [getAccessToken, router, socialListView])
+
+  useEffect(() => {
+    if (!socialListView || !displayedUser) {
+      return
+    }
+
+    if (socialListView.userId !== displayedUser.id || !canViewDisplayedUserConnections) {
+      setSocialListView(null)
+    }
+  }, [canViewDisplayedUserConnections, displayedUser, socialListView])
+
+  const handleOpenSocialList = useCallback(
+    (kind: SocialListKind) => {
+      if (!displayedUser || !canViewDisplayedUserConnections) {
+        return
+      }
+
+      setSocialListView({
+        kind,
+        userId: displayedUser.id,
+        username: displayedUser.username,
+      })
+    },
+    [canViewDisplayedUserConnections, displayedUser],
+  )
+
   const handleToggleFollow = useCallback(
     async (targetUser: UserRecord) => {
       const accessToken = await getAccessToken()
@@ -317,50 +424,32 @@ export default function PoopersProfilePage() {
       const isCurrentlyFollowing = followedUserIds.has(targetUser.id)
       setTogglingUserId(targetUser.id)
 
-      const response = await fetch("/api/follow", {
-        method: isCurrentlyFollowing ? "DELETE" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          followingId: targetUser.id,
-        }),
-      })
-
-      const result = await response.json().catch(() => null)
-      console.log("follow response status", response.status)
-      console.log("follow response body", result)
-
-      if (!response.ok) {
-        setTogglingUserId(null)
-        return
-      }
-
-      if (isCurrentlyFollowing) {
-        setFollowingUsers((current) =>
-          current.filter((user) => user.id !== targetUser.id)
-        )
-      } else {
-        setFollowingUsers((current) => {
-          const alreadyExists = current.some((user) => user.id === targetUser.id)
-          if (alreadyExists) {
-            return current
-          }
-
-          return [...current, targetUser].sort((a, b) => {
-            if (b.reviewCount !== a.reviewCount) {
-              return b.reviewCount - a.reviewCount
-            }
-
-            return a.username.localeCompare(b.username)
-          })
+      try {
+        const response = await fetch("/api/follow", {
+          method: isCurrentlyFollowing ? "DELETE" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            followingId: targetUser.id,
+          }),
         })
-      }
 
-      setTogglingUserId(null)
+        const result = await response.json().catch(() => null)
+        console.log("follow response status", response.status)
+        console.log("follow response body", result)
+
+        if (!response.ok) {
+          return
+        }
+
+        await Promise.all([loadFollowing(), loadUsers(), loadProfile()])
+      } finally {
+        setTogglingUserId(null)
+      }
     },
-    [followedUserIds, getAccessToken, router],
+    [followedUserIds, getAccessToken, loadFollowing, loadProfile, loadUsers, router],
   )
 
   const handleDeleteReview = useCallback(
@@ -412,8 +501,40 @@ export default function PoopersProfilePage() {
     [loadReviews, reviewPendingDelete, router],
   )
 
+  const socialListTitle = socialListView
+    ? `${socialListView.kind === "followers" ? "Followers" : "Following"} of @${socialListView.username}`
+    : ""
+
+  const socialListDescription = socialListView
+    ? profile?.id === socialListView.userId
+      ? `Browse the people in your ${socialListView.kind === "followers" ? "followers" : "following"} list.`
+      : `Because you follow @${socialListView.username}, you can browse their ${socialListView.kind}.`
+    : ""
+
+  const socialListEmptyMessage = socialListView
+    ? socialListView.kind === "followers"
+      ? "No followers yet."
+      : "Not following anyone yet."
+    : ""
+
   return (
     <main className="h-screen overflow-hidden">
+      <SocialConnectionsModal
+        isOpen={Boolean(socialListView)}
+        title={socialListTitle}
+        description={socialListDescription}
+        users={socialListUsers}
+        isLoading={isLoadingSocialList}
+        errorMessage={socialListError}
+        emptyMessage={socialListEmptyMessage}
+        selectedUserId={selectedUserId}
+        onClose={() => setSocialListView(null)}
+        onSelectUser={(userId) => {
+          setSelectedUserId(userId)
+          setSocialListView(null)
+        }}
+      />
+
       <ConfirmActionModal
         isOpen={Boolean(reviewPendingDelete)}
         title="Delete this review?"
@@ -452,9 +573,72 @@ export default function PoopersProfilePage() {
             </p>
 
             {displayedUser ? (
-              <p className="text-sm text-gray-500">
-                {displayedUserReviewCount} review{displayedUserReviewCount === 1 ? "" : "s"}
-              </p>
+              <div className="mt-3 w-full max-w-sm">
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-2xl bg-amber-50 px-3 py-3">
+                    <p className="text-lg font-semibold text-amber-900">
+                      {displayedUserReviewCount}
+                    </p>
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-amber-700">
+                      Reviews
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenSocialList("followers")}
+                    disabled={!canViewDisplayedUserConnections}
+                    aria-haspopup="dialog"
+                    className={`rounded-2xl px-3 py-3 text-left shadow-sm ring-1 ring-amber-900/10 transition ${
+                      canViewDisplayedUserConnections
+                        ? "bg-white hover:-translate-y-0.5 hover:bg-amber-50 cursor-pointer"
+                        : "bg-white/80 opacity-70 cursor-not-allowed"
+                    }`}
+                  >
+                    <p className="text-lg font-semibold text-amber-900 text-center">
+                      {displayedUser.followerCount}
+                    </p>
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-amber-700 text-center">
+                      Followers
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenSocialList("following")}
+                    disabled={!canViewDisplayedUserConnections}
+                    aria-haspopup="dialog"
+                    className={`rounded-2xl px-3 py-3 text-left shadow-sm ring-1 ring-amber-900/10 transition ${
+                      canViewDisplayedUserConnections
+                        ? "bg-white hover:-translate-y-0.5 hover:bg-amber-50 cursor-pointer"
+                        : "bg-white/80 opacity-70 cursor-not-allowed"
+                    }`}
+                  >
+                    <p className="text-lg font-semibold text-amber-900 text-center">
+                      {displayedUser.followingCount}
+                    </p>
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-amber-700 text-center">
+                      Following
+                    </p>
+                  </button>
+                </div>
+
+                <p className="mt-3 min-h-5 text-xs text-slate-500">
+                  {canViewDisplayedUserConnections
+                    ? "Tap Followers or Following to browse the list."
+                    : `Follow @${displayedUser.username} to view their followers and following.`}
+                </p>
+                {displayedUserBadges.length > 0 && (
+                  <div className="flex flex-wrap gap-2 justify-center mt-2">
+                    {displayedUserBadges.map((badge) => (
+                      <div key={badge} className="flex items-center gap-1 rounded-full bg-amber-900 px-3 py-1 text-white text-xs">
+                        <span>{BADGE_META[badge]?.emoji ?? "🏅"}</span>
+                        <span>{BADGE_META[badge]?.label ?? badge}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             ) : null}
           </div>
 
@@ -590,7 +774,7 @@ export default function PoopersProfilePage() {
                         <UserCard
                           key={user.id}
                           user={user}
-                          onClick={() => setSelectedUser(user)}
+                          onClick={() => setSelectedUserId(user.id)}
                           isSelected={displayedUser?.id === user.id}
                           isFollowing={followedUserIds.has(user.id)}
                           showFollowButton={profile?.id !== user.id}
@@ -612,7 +796,7 @@ export default function PoopersProfilePage() {
                       <UserCard
                         key={user.id}
                         user={user}
-                        onClick={() => setSelectedUser(user)}
+                        onClick={() => setSelectedUserId(user.id)}
                         isSelected={displayedUser?.id === user.id}
                         isFollowing
                         showFollowButton={profile?.id !== user.id}
