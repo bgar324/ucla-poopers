@@ -160,20 +160,20 @@ Site URL:
 https://ucla-poopers.vercel.app
 
 Redirect URLs:
-http://localhost:3000/auth/callback
-https://ucla-poopers.vercel.app/auth/callback
+http://localhost:3000/**
+https://ucla-poopers.vercel.app/**
 ```
 
 Use the production root domain for `Site URL`. Do not put `/auth/callback` in the `Site URL` field.
 
-`Redirect URLs` are the per-environment allow-list. They must exactly match the browser origin you use during auth. If you develop on `127.0.0.1`, a different port, or a Vercel preview URL, add those callback URLs too or Supabase will fall back to the `Site URL`.
+`Redirect URLs` are the per-environment allow-list. If you include query parameters in `redirectTo`, the simplest safe setup is to allow the full local or deployed path pattern with `/**`. If you develop on `127.0.0.1`, a different port, or a Vercel preview URL, add those callback URL patterns too or Supabase will fall back to the `Site URL`.
 
 Examples:
 
 ```
-http://127.0.0.1:3000/auth/callback
-http://localhost:3001/auth/callback
-https://your-preview-url.vercel.app/auth/callback
+http://127.0.0.1:3000/**
+http://localhost:3001/**
+https://your-preview-url.vercel.app/**
 ```
 
 In **Google Cloud Console**, the OAuth client should keep using the Supabase callback URL:
