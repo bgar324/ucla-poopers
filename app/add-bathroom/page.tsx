@@ -56,7 +56,7 @@ export default function AddReviewPage() {
   const [floor, setFloor] = useState<number | "">("");
   const [type, setType] = useState("");
 
-  const [rating, setRating] = useState<number | "">("");
+  const [rating, setRating] = useState<number | null>(null);
   const [description, setDescription] = useState("");
 
   const [latitude, setLatitude] = useState<number | null>(null);
@@ -209,7 +209,7 @@ export default function AddReviewPage() {
   };
 
   const handleSubmit = async () => {
-    if (!supabaseAuthId || !rating) {
+    if (!supabaseAuthId || rating === null) {
       setError("Rating is required.");
       return;
     }
@@ -249,7 +249,7 @@ export default function AddReviewPage() {
         review: { rating: number; description: string };
       } = {
         supabaseAuthId,
-        review: { rating: Number(rating), description: description.trim() },
+        review: { rating, description: description.trim() },
       };
 
       if (addNewBathroom) {
@@ -410,7 +410,7 @@ export default function AddReviewPage() {
           </label>
 
           <Rating
-            value={rating}
+            value={rating ?? 0}
             interactive
             onChange={(val) => setRating(val)}
           />
