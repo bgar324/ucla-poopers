@@ -28,8 +28,13 @@ interface BathroomDetailRouteBathroom {
   longitude: number;
   type: string;
   is_closed: boolean;
+  created_by: string | null;
   reviewSummary: string | null;
   reviewSummaryReviewCount: number | null;
+  creator: {
+    id: string;
+    username: string;
+  } | null;
   reviews: BathroomDetailRouteReview[];
 }
 
@@ -72,6 +77,10 @@ function getFallbackDetail(
   );
 }
 
+function isFiniteCoordinate(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -84,6 +93,12 @@ export async function GET(
     const bathroom = (await prisma.bathroom.findUnique({
       where: { id },
       include: {
+        creator: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
         reviews: {
           orderBy: { created_at: "desc" },
           select: {
@@ -122,6 +137,10 @@ export async function GET(
       reviewCount,
       primaryReview,
     );
+    const createdAt =
+      bathroom.reviews.length > 0
+        ? bathroom.reviews[bathroom.reviews.length - 1].created_at
+        : null;
 
     let detail = fallbackDetail;
 
@@ -175,6 +194,9 @@ export async function GET(
         type: bathroom.type,
         typeLabel: formatBathroomType(bathroom.type),
         isOpen: !bathroom.is_closed,
+        creatorId: bathroom.creator?.id ?? bathroom.created_by,
+        creatorUsername: bathroom.creator?.username ?? null,
+        createdAt,
         rating: averageRating,
         reviewCount,
         detail,
@@ -194,6 +216,155 @@ export async function GET(
     console.error("GET BATHROOM DETAIL ERROR:", error);
     return NextResponse.json(
       { error: "Failed to fetch bathroom." },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const { supabaseAuthId, latitude, longitude } = body as {
+      supabaseAuthId?: string;
+      latitude?: number;
+      longitude?: number;
+    };
+
+    if (
+      !supabaseAuthId ||
+      !isFiniteCoordinate(latitude) ||
+      !isFiniteCoordinate(longitude)
+    ) {
+      return NextResponse.json(
+        { error: "Missing required fields (supabaseAuthId, latitude, longitude)." },
+        { status: 400 },
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { supabaseAuthId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found." }, { status: 404 });
+    }
+
+    const bathroom = await prisma.bathroom.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        created_by: true,
+      },
+    });
+
+    if (!bathroom) {
+      return NextResponse.json({ error: "Bathroom not found." }, { status: 404 });
+    }
+
+    if (!bathroom.created_by || bathroom.created_by !== user.id) {
+      return NextResponse.json(
+        { error: "Only the restroom creator can move this pin." },
+        { status: 403 },
+      );
+    }
+
+    const updatedBathroom = await prisma.bathroom.update({
+      where: { id: bathroom.id },
+      data: {
+        latitude,
+        longitude,
+      },
+      select: {
+        id: true,
+        latitude: true,
+        longitude: true,
+      },
+    });
+
+    return NextResponse.json({ bathroom: updatedBathroom });
+  } catch (error) {
+    console.error("PATCH BATHROOM ERROR:", error);
+    return NextResponse.json(
+      { error: "Failed to update bathroom location." },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const { supabaseAuthId } = body as { supabaseAuthId?: string };
+
+    if (!supabaseAuthId) {
+      return NextResponse.json(
+        { error: "Missing required field (supabaseAuthId)." },
+        { status: 400 },
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { supabaseAuthId },
+      select: { id: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found." }, { status: 404 });
+    }
+
+    const bathroom = await prisma.bathroom.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        created_by: true,
+        _count: {
+          select: {
+            reviews: true,
+          },
+        },
+      },
+    });
+
+    if (!bathroom) {
+      return NextResponse.json({ error: "Bathroom not found." }, { status: 404 });
+    }
+
+    if (!bathroom.created_by || bathroom.created_by !== user.id) {
+      return NextResponse.json(
+        { error: "Only the restroom creator can delete this restroom." },
+        { status: 403 },
+      );
+    }
+
+    await prisma.$transaction([
+      prisma.review.deleteMany({
+        where: { bathroom_id: bathroom.id },
+      }),
+      prisma.bathroom.delete({
+        where: { id: bathroom.id },
+      }),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      bathroomId: bathroom.id,
+      bathroomName: bathroom.name,
+      deletedReviewCount: bathroom._count.reviews,
+    });
+  } catch (error) {
+    console.error("DELETE BATHROOM ERROR:", error);
+    return NextResponse.json(
+      { error: "Failed to delete bathroom." },
       { status: 500 },
     );
   }

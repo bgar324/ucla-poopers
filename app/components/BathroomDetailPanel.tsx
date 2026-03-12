@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, MapPinned, Pencil, Plus, Trash2 } from "lucide-react";
 import supabase from "@/supabaseClient";
 import ConfirmActionModal from "./ConfirmActionModal";
+import BathroomLocationModal from "./BathroomLocationModal";
 import Rating from "./Rating";
 import UserAvatar from "./UserAvatar";
 
@@ -24,8 +25,13 @@ interface BathroomDetail {
   detail: string;
   building: string;
   floor: number;
+  latitude: number;
+  longitude: number;
   typeLabel: string;
   isOpen: boolean;
+  creatorId: string | null;
+  creatorUsername: string | null;
+  createdAt: string | null;
   rating: number;
   reviewCount: number;
   reviews: BathroomReview[];
@@ -125,6 +131,12 @@ export default function BathroomDetailPanel({
   const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null);
   const [reviewPendingDelete, setReviewPendingDelete] =
     useState<BathroomReview | null>(null);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [isSavingLocation, setIsSavingLocation] = useState(false);
+  const [locationError, setLocationError] = useState("");
+  const [bathroomActionError, setBathroomActionError] = useState("");
+  const [bathroomPendingDelete, setBathroomPendingDelete] = useState(false);
+  const [isDeletingBathroom, setIsDeletingBathroom] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const lastAutoOpenRequestRef = useRef<string | null>(null);
 
@@ -139,6 +151,10 @@ export default function BathroomDetailPanel({
     bathroom && viewer
       ? bathroom.reviews.find((review) => review.userId === viewer.id) ?? null
       : null;
+  const viewerCanManageBathroom =
+    Boolean(bathroom?.creatorId) &&
+    Boolean(viewer?.id) &&
+    bathroom?.creatorId === viewer?.id;
 
   useEffect(() => {
     let active = true;
@@ -200,6 +216,12 @@ export default function BathroomDetailPanel({
     let active = true;
     setIsLoading(true);
     setErrorMessage("");
+    setBathroomActionError("");
+    setLocationError("");
+    setBathroomPendingDelete(false);
+    setIsLocationModalOpen(false);
+    setReviewPendingDelete(null);
+    setReviewError("");
 
     const loadBathroom = async () => {
       try {
@@ -382,6 +404,111 @@ export default function BathroomDetailPanel({
     }
   };
 
+  const handleSaveLocation = async (latitude: number, longitude: number) => {
+    if (!viewer?.supabaseAuthId) {
+      setLocationError("Sign in to update this restroom location.");
+      return;
+    }
+
+    setIsSavingLocation(true);
+    setLocationError("");
+    setBathroomActionError("");
+
+    try {
+      const response = await fetch(`/api/bathrooms/${bathroomId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          supabaseAuthId: viewer.supabaseAuthId,
+          latitude,
+          longitude,
+        }),
+      });
+
+      const data = (await response.json().catch(() => null)) as
+        | { bathroom?: { latitude: number; longitude: number }; error?: string }
+        | null;
+
+      if (!response.ok || !data?.bathroom) {
+        throw new Error(data?.error ?? "Failed to update restroom location.");
+      }
+
+      const updatedBathroom = data.bathroom;
+
+      setBathroom((current) =>
+        current
+          ? {
+              ...current,
+              latitude: updatedBathroom.latitude,
+              longitude: updatedBathroom.longitude,
+            }
+          : current,
+      );
+      setIsLocationModalOpen(false);
+      onReviewSaved?.();
+    } catch (error) {
+      setLocationError(
+        error instanceof Error ? error.message : "Failed to update restroom location.",
+      );
+    } finally {
+      setIsSavingLocation(false);
+    }
+  };
+
+  const handleDeleteBathroom = async () => {
+    if (!bathroom) {
+      return;
+    }
+
+    if (!viewer?.supabaseAuthId) {
+      setBathroomPendingDelete(false);
+      setBathroomActionError("Sign in to delete this restroom.");
+      return;
+    }
+
+    setIsDeletingBathroom(true);
+    setBathroomActionError("");
+
+    try {
+      const response = await fetch(`/api/bathrooms/${bathroom.id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          supabaseAuthId: viewer.supabaseAuthId,
+        }),
+      });
+
+      const data = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | { success: true }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(
+          data && "error" in data && data.error
+            ? data.error
+            : "Failed to delete restroom.",
+        );
+      }
+
+      setBathroomPendingDelete(false);
+      setIsLocationModalOpen(false);
+      onBack();
+      onReviewSaved?.();
+    } catch (error) {
+      setBathroomPendingDelete(false);
+      setBathroomActionError(
+        error instanceof Error ? error.message : "Failed to delete restroom.",
+      );
+    } finally {
+      setIsDeletingBathroom(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className={statusShellClassName}>
@@ -404,6 +531,39 @@ export default function BathroomDetailPanel({
 
   return (
     <div className={shellClassName}>
+      <BathroomLocationModal
+        isOpen={isLocationModalOpen}
+        bathroomName={bathroom.name}
+        initialLatitude={bathroom.latitude}
+        initialLongitude={bathroom.longitude}
+        isSaving={isSavingLocation}
+        errorMessage={locationError}
+        onClose={() => {
+          if (!isSavingLocation) {
+            setIsLocationModalOpen(false);
+            setLocationError("");
+          }
+        }}
+        onSave={(latitude, longitude) => void handleSaveLocation(latitude, longitude)}
+      />
+
+      <ConfirmActionModal
+        isOpen={bathroomPendingDelete}
+        title="Delete this restroom?"
+        description={`You are about to delete ${bathroom.name} and ${bathroom.reviewCount} review${
+          bathroom.reviewCount === 1 ? "" : "s"
+        } for it. This action cannot be undone.`}
+        confirmLabel="Delete restroom"
+        cancelLabel="Keep restroom"
+        isConfirming={isDeletingBathroom}
+        onCancel={() => {
+          if (!isDeletingBathroom) {
+            setBathroomPendingDelete(false);
+          }
+        }}
+        onConfirm={() => void handleDeleteBathroom()}
+      />
+
       <ConfirmActionModal
         isOpen={Boolean(reviewPendingDelete)}
         title="Delete this review?"
@@ -467,6 +627,12 @@ export default function BathroomDetailPanel({
             </p>
           </div>
 
+          {bathroomActionError ? (
+            <p className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 font-rubik text-sm text-red-700">
+              {bathroomActionError}
+            </p>
+          ) : null}
+
           <div className="mt-8 grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.9fr)]">
             <section className="rounded-[1.5rem] border border-white/60 bg-white/55 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
               <p className="font-rubik text-[11px] uppercase tracking-[0.24em] text-amber-900/55">
@@ -491,6 +657,57 @@ export default function BathroomDetailPanel({
                 Based on {bathroom.reviewCount} review
                 {bathroom.reviewCount === 1 ? "" : "s"}.
               </p>
+
+              <div className="mt-5 border-t border-amber-900/10 pt-5">
+                <p className="font-rubik text-[11px] uppercase tracking-[0.24em] text-amber-900/55">
+                  Created
+                </p>
+                <div className="mt-3 flex items-start gap-3">
+                  <CalendarDays className="mt-0.5 h-4 w-4 text-amber-900/70" />
+                  <p className="font-rubik text-sm leading-6 text-slate-600">
+                    {bathroom.creatorUsername ? (
+                      <>
+                        Created by @{bathroom.creatorUsername}
+                        {bathroom.createdAt
+                          ? ` on ${formatReviewDate(bathroom.createdAt)}`
+                          : ""}
+                      </>
+                    ) : bathroom.createdAt ? (
+                      <>Added on {formatReviewDate(bathroom.createdAt)}</>
+                    ) : (
+                      "Creator info unavailable."
+                    )}
+                  </p>
+                </div>
+
+                {viewerCanManageBathroom ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBathroomActionError("");
+                        setLocationError("");
+                        setIsLocationModalOpen(true);
+                      }}
+                      className="inline-flex items-center gap-2 rounded-full border border-amber-900/20 bg-white/80 px-3 py-2 font-rubik text-sm text-amber-900 transition hover:bg-white"
+                    >
+                      <MapPinned size={15} strokeWidth={2} />
+                      Move pin
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBathroomActionError("");
+                        setBathroomPendingDelete(true);
+                      }}
+                      className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white/80 px-3 py-2 font-rubik text-sm text-red-700 transition hover:bg-red-50"
+                    >
+                      <Trash2 size={15} strokeWidth={2} />
+                      Delete restroom
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </section>
           </div>
         </div>

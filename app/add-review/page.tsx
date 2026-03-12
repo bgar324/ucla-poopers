@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import supabase from "@/supabaseClient";
 import { ChevronDown, Plus } from "lucide-react";
@@ -29,6 +30,11 @@ function formatBathroomType(type: string) {
   return t?.label ?? type;
 }
 
+const BathroomLocationPicker = dynamic(
+  () => import("../components/BathroomLocationPicker").then((mod) => mod.default),
+  { ssr: false }
+);
+
 export default function AddReviewPage() {
   const router = useRouter();
   const [supabaseAuthId, setSupabaseAuthId] = useState<string | null>(null);
@@ -53,6 +59,7 @@ export default function AddReviewPage() {
 
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
+  const [locationConfirmed, setLocationConfirmed] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -120,36 +127,6 @@ export default function AddReviewPage() {
     setAddNewBathroom(false);
   }, [bathrooms, requestedBathroomId]);
 
-  useEffect(() => {
-  if (!building) return;
-  
-  const match = bathrooms.find(
-    (b) => b.building.toLowerCase() === building.toLowerCase()
-  );
-  
-  if (match) {
-    setLatitude(match.latitude);
-    setLongitude(match.longitude);
-  } else {
-    if (!navigator.geolocation) {
-      setLatitude(0);
-      setLongitude(0);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLatitude(pos.coords.latitude);
-        setLongitude(pos.coords.longitude);
-      },
-      () => {
-        setLatitude(0);
-        setLongitude(0);
-      },
-      { enableHighAccuracy: true, timeout: 5000 }
-    );
-  }
-}, [building, bathrooms]);
-
   const searchLower = bathroomSearch.trim().toLowerCase();
   const filteredBathrooms = useMemo(() => {
     if (!searchLower) return bathrooms;
@@ -180,18 +157,46 @@ export default function AddReviewPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const handleLocationChange = (nextLatitude: number, nextLongitude: number) => {
+    setLatitude(nextLatitude);
+    setLongitude(nextLongitude);
+    setLocationConfirmed(false);
+    setError("");
+  };
+
   const handleSelectBathroom = (b: BathroomOption) => {
     setSelectedBathroomId(b.id);
     setBathroomSearch(`${b.name} – ${b.building}, Floor ${b.floor}`);
     setAddNewBathroom(false);
+    setLatitude(null);
+    setLongitude(null);
+    setLocationConfirmed(false);
     setDropdownOpen(false);
+    setError("");
   };
 
   const handleAddNewBathroom = () => {
     setAddNewBathroom(true);
     if (bathroomSearch.trim()) setName(bathroomSearch.trim());
     setSelectedBathroomId(null);
+    setLatitude(null);
+    setLongitude(null);
+    setLocationConfirmed(false);
     setDropdownOpen(false);
+    setError("");
+  };
+
+  const handleCancelNewBathroom = () => {
+    setAddNewBathroom(false);
+    setBathroomSearch("");
+    setName("");
+    setBuilding("");
+    setFloor("");
+    setType("");
+    setLatitude(null);
+    setLongitude(null);
+    setLocationConfirmed(false);
+    setError("");
   };
 
   const handleSubmit = async () => {
@@ -208,6 +213,11 @@ export default function AddReviewPage() {
     if (addNewBathroom) {
       if (!name || !building || floor === "" || !type || latitude === null || longitude === null) {
         setError("New bathroom: name, building, floor, and type are required.");
+        return;
+      }
+
+      if (!locationConfirmed) {
+        setError("Confirm the restroom pin on the map before submitting.");
         return;
       }
     }
@@ -268,7 +278,7 @@ export default function AddReviewPage() {
   return (
     <main className="min-h-screen bg-amber-50 flex items-center justify-center p-4">
       <ToiletBG />
-      <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-lg">
+      <div className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-lg">
         <h1 className="text-2xl font-semibold mb-4 text-amber-900">Add Review</h1>
 
         {error && <p className="text-red-600 mb-2">{error}</p>}
@@ -348,51 +358,66 @@ export default function AddReviewPage() {
 
         {/* New bathroom form (when "add new" is chosen) */}
         {addNewBathroom && (
-          <div className="mb-4 p-4 rounded-lg bg-amber-50 border border-amber-200 space-y-2">
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm font-medium text-amber-900">New bathroom details</p>
-            <input
-              className="w-full border border-gray-300 rounded px-3 py-2"
-              placeholder="Bathroom name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <input
-              className="w-full border border-gray-300 rounded px-3 py-2"
-              placeholder="Building"
-              value={building}
-              onChange={(e) => setBuilding(e.target.value)}
-            />
-            <input
-              className="w-full border border-gray-300 rounded px-3 py-2"
-              placeholder="Floor"
-              type="number"
-              value={floor}
-              onChange={(e) => setFloor(Number(e.target.value) || "")}
-            />
-            <div>
-              <label className="block mb-1 text-sm text-gray-700">Type</label>
-              <select
-                className="w-full border border-gray-300 rounded px-3 py-2"
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-              >
-                <option value="">Select type...</option>
-                {BATHROOM_TYPES.map((bt) => (
-                  <option key={bt.value} value={bt.value}>{bt.label}</option>
-                ))}
-              </select>
+            <p className="mt-1 text-sm text-amber-800/80">
+              The map starts from your current location. Drag the pin until it sits exactly where the restroom entrance should be, then confirm it.
+            </p>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <input
+                className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                placeholder="Bathroom name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <input
+                className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                placeholder="Building"
+                value={building}
+                onChange={(e) => setBuilding(e.target.value)}
+              />
+              <input
+                className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                placeholder="Floor"
+                type="number"
+                value={floor}
+                onChange={(e) => setFloor(Number(e.target.value) || "")}
+              />
+              <div>
+                <label className="mb-1 block text-sm text-gray-700">Type</label>
+                <select
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2"
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
+                >
+                  <option value="">Select type...</option>
+                  {BATHROOM_TYPES.map((bt) => (
+                    <option key={bt.value} value={bt.value}>
+                      {bt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
+
+            <div className="mt-4">
+              <BathroomLocationPicker
+                latitude={latitude}
+                longitude={longitude}
+                isConfirmed={locationConfirmed}
+                onLocationChange={handleLocationChange}
+                onConfirm={() => {
+                  setLocationConfirmed(true);
+                  setError("");
+                }}
+              />
+            </div>
+
             <button
               type="button"
-              className="text-sm text-amber-800 underline"
-              onClick={() => {
-                setAddNewBathroom(false);
-                setBathroomSearch("");
-                setName("");
-                setBuilding("");
-                setFloor("");
-                setType("");
-              }}
+              className="mt-4 text-sm text-amber-800 underline"
+              onClick={handleCancelNewBathroom}
             >
               Cancel – choose existing bathroom
             </button>
